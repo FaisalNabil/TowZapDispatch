@@ -1,0 +1,48 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@inject UserContext UserContext
+
+<MudLayout>
+    <MudDrawer Open="true" ClipMode="DrawerClipMode.Always">
+        <MudNavMenu>
+            @if (UserContext.Role == "Administrator")
+            {
+                <MudNavLink Href="/admin/dashboard" Icon="@Icons.Material.Filled.Dashboard">Admin Dashboard</MudNavLink>
+                <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People">Guest Users</MudNavLink>
+            }
+            else if (UserContext.Role == "Dispatcher")
+            {
+                <MudNavLink Href="/dispatcher/jobs" Icon="@Icons.Material.Filled.LocalShipping">Job Assignments</MudNavLink>
+                <MudNavLink Href="/dispatcher/map" Icon="@Icons.Material.Filled.Map">Live Map</MudNavLink>
+            }
+            else if (UserContext.Role == "Driver")
+            {
+                <MudNavLink Href="/driver/myjob" Icon="@Icons.Material.Filled.Assignment">My Job</MudNavLink>
+            }
+            else if (UserContext.Role == "GuestUser")
+            {
+                <MudNavLink Href="/guest/request" Icon="@Icons.Material.Filled.AddCircle">New Request</MudNavLink>
+                <MudNavLink Href="/guest/status" Icon="@Icons.Material.Filled.LocationOn">Track Driver</MudNavLink>
+            }
+        </MudNavMenu>
+    </MudDrawer>
+
+    <MudMainContent>
+        @Body
+    </MudMainContent>
+
+    <MudAppBar Color="Color.Primary">
+        <MudText Typo="Typo.h6">TowZap Dispatch</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" OnClick="@Logout">Logout</MudButton>
+    </MudAppBar>
+</MudLayout>
+
+@code {
+    private async Task Logout()
+    {
+        await LocalStorage.RemoveItemAsync("authToken");
+        Navigation.NavigateTo("/login", true);
+    }
+}

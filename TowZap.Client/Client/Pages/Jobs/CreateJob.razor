@@ -1,0 +1,34 @@
+﻿@page "/jobs/create"
+@inject IJobRequestService JobRequestService
+
+<h3>Create Tow Request</h3>
+
+<EditForm Model="@jobModel" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <InputText @bind-Value="jobModel.Year" placeholder="Year" class="form-control" />
+    <InputText @bind-Value="jobModel.Make" placeholder="Make" class="form-control" />
+    <InputText @bind-Value="jobModel.Model" placeholder="Model" class="form-control" />
+    <InputText @bind-Value="jobModel.LicensePlate" placeholder="License Plate" class="form-control" />
+    <InputText @bind-Value="jobModel.VIN" placeholder="VIN#" class="form-control" />
+    <InputText @bind-Value="jobModel.Color" placeholder="Color" class="form-control" />
+    <InputTextArea @bind-Value="jobModel.Problem" placeholder="Problem" class="form-control" />
+    <InputText @bind-Value="jobModel.PhoneNumber" placeholder="Customer Phone" class="form-control" />
+    <InputText @bind-Value="jobModel.AddressFrom" placeholder="Pickup Location" class="form-control" />
+    <InputText @bind-Value="jobModel.AddressTo" placeholder="Destination Location" class="form-control" />
+    <InputText @bind-Value="jobModel.AccountName" placeholder="Account Name" class="form-control" />
+    <InputTextArea @bind-Value="jobModel.Notes" placeholder="Notes" class="form-control" />
+
+    <button class="btn btn-primary mt-3" type="submit">Submit</button>
+</EditForm>
+
+@code {
+    private JobRequestDTO jobModel = new();
+
+    private async Task HandleValidSubmit()
+    {
+        await JobRequestService.SubmitJobAsync(jobModel);
+        // Show success and redirect
+    }
+}

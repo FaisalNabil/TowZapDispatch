@@ -1,0 +1,33 @@
+﻿@inject UserContext UserContext
+<nav class="sidebar">
+    <ul>
+        @if (UserContext.Role == "Administrator")
+        {
+            <li><NavLink href="/admin/dashboard">Admin Dashboard</NavLink></li>
+        }
+        else if (UserContext.Role == "Dispatcher")
+        {
+            <li><NavLink href="/dispatcher/dashboard">Dispatcher Dashboard</NavLink></li>
+        }
+        else if (UserContext.Role == "Driver")
+        {
+            <li><NavLink href="/driver/dashboard">Driver Dashboard</NavLink></li>
+        }
+        else if (UserContext.Role == "GuestUser")
+        {
+            <li><NavLink href="/guest/dashboard">Guest Dashboard</NavLink></li>
+        }
+        <li><button class="btn btn-sm btn-outline-danger" @onclick="Logout">Logout</button></li>
+    </ul>
+</nav>
+
+@code {
+    [Inject] IAuthService AuthService { get; set; }
+    [Inject] NavigationManager Navigation { get; set; }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login", true);
+    }
+}

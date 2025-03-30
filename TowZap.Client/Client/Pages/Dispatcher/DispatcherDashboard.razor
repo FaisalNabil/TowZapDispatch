@@ -1,0 +1,85 @@
+﻿@page "/dispatcher/dashboard"
+@inject HttpClient Http
+
+<MudPaper Class="pa-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">Dispatcher Dashboard</MudText>
+
+    <MudTabs>
+        <MudTabPanel Text="Pending Towing Requests">
+            <MudTable Items="_pendingJobs" Hover="true">
+                <HeaderContent>
+                    <MudTh>Guest</MudTh>
+                    <MudTh>From</MudTh>
+                    <MudTh>To</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Assign Driver</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.GuestName</MudTd>
+                    <MudTd>@context.AddressFrom</MudTd>
+                    <MudTd>@context.AddressTo</MudTd>
+                    <MudTd>@context.Status</MudTd>
+                    <MudTd>
+                        <MudSelect @bind-Value="_selectedDrivers[context.Id]" Dense="true" Label="Driver">
+                            @foreach (var driver in _availableDrivers)
+                            {
+                                <MudSelectItem Value="@driver.Id">@driver.FullName</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudButton Color="Color.Primary" OnClick="@(() => AssignDriver(context.Id))" Class="mt-2">
+                            Assign
+                        </MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Available Drivers">
+            <MudTable Items="_availableDrivers" Hover="true">
+                <HeaderContent>
+                    <MudTh>Driver Name</MudTh>
+                    <MudTh>Status</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.FullName</MudTd>
+                    <MudTd>@context.Status</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+    </MudTabs>
+</MudPaper>
+
+@code {
+    private List<TowingRequestDTO> _pendingJobs = new();
+    private List<UserDTO> _availableDrivers = new();
+    private Dictionary<string, string> _selectedDrivers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _pendingJobs = await Http.GetFromJsonAsync<List<TowingRequestDTO>>("api/jobrequests/dispatcher-pending");
+        _availableDrivers = await Http.GetFromJsonAsync<List<UserDTO>>("api/users/available-drivers");
+
+        foreach (var job in _pendingJobs)
+        {
+            _selectedDrivers[job.Id] = "";
+        }
+    }
+
+    private async Task AssignDriver(string jobId)
+    {
+        if (_selectedDrivers.TryGetValue(jobId, out var driverId) && !string.IsNullOrEmpty(driverId))
+        {
+            var response = await Http.PostAsJsonAsync("api/jobrequests/assign", new
+            {
+                JobRequestId = jobId,
+                DriverId = driverId
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                _pendingJobs.RemoveAll(j => j.Id == jobId);
+                _selectedDrivers.Remove(jobId);
+            }
+        }
+    }
+}

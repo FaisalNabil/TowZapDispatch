@@ -1,0 +1,93 @@
+﻿@page "/guest/dashboard"
+@inject HttpClient Http
+@inject JobUpdateService JobUpdateService
+
+
+<MudPaper Class="pa-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">Guest Dashboard</MudText>
+
+    <MudText Typo="Typo.h6" Class="mt-4">Your Towing Requests</MudText>
+
+    @if (_requests.Any())
+    {
+        @foreach (var request in _requests)
+        {
+            <MudCard Class="mb-4">
+                <MudCardContent>
+                    <MudText><b>Status:</b> @request.Status</MudText>
+                    <MudText><b>From:</b> @request.AddressFrom</MudText>
+                    <MudText><b>To:</b> @request.AddressTo</MudText>
+                    <MudText><b>Vehicle:</b> @request.Make @request.Model (@request.Color)</MudText>
+                    <MudText><b>Assigned Driver:</b> @request.DriverName ?? "Not assigned"</MudText>
+                    <MudText><b>Tow Date:</b> @request.DateOfTow?.ToString("MM/dd/yyyy")</MudText>
+                    <MudText><b>Tow Fee:</b> $@request.TowAmount</MudText>
+                    @if (!string.IsNullOrEmpty(request.DriverLocation))
+                    {
+                        <MudText><b>Driver Location:</b> @request.DriverLocation</MudText>
+                    }
+                </MudCardContent>
+            </MudCard>
+        }
+    }
+    else
+    {
+        <MudText>No towing requests found.</MudText>
+    }
+
+    <MudDivider Class="my-4" />
+
+    <MudText Typo="Typo.h6">Create a New Request</MudText>
+
+    <MudForm @ref="_form" Class="mt-2">
+        <MudTextField Label="From Address" @bind-Value="_newRequest.AddressFrom" Required="true" />
+        <MudTextField Label="To Address" @bind-Value="_newRequest.AddressTo" Required="true" />
+        <MudTextField Label="Make" @bind-Value="_newRequest.Make" />
+        <MudTextField Label="Model" @bind-Value="_newRequest.Model" />
+        <MudTextField Label="Color" @bind-Value="_newRequest.Color" />
+        <MudTextField Label="License Plate" @bind-Value="_newRequest.LicensePlate" />
+        <MudTextField Label="VIN" @bind-Value="_newRequest.VIN" />
+        <MudTextField Label="Problem" @bind-Value="_newRequest.Problem" />
+        <MudTextField Label="Customer Phone" @bind-Value="_newRequest.CustomerPhone" />
+        <MudTextField Label="Authorization Source" @bind-Value="_newRequest.AuthorizationSource" />
+
+        <MudButton Color="Color.Primary" OnClick="SubmitNewRequest" Class="mt-3">Submit Request</MudButton>
+    </MudForm>
+</MudPaper>
+
+@code {
+    private List<TowingRequestDTO> _requests = new();
+    private TowingRequestDTO _newRequest = new();
+    private MudForm _form;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _requests = await Http.GetFromJsonAsync<List<TowingRequestDTO>>("api/jobrequests/my");
+
+        foreach (var req in _requests)
+        {
+            await JobUpdateService.StartConnectionAsync(req.Id);
+        }
+
+        JobUpdateService.OnJobUpdated += async (jobId) =>
+        {
+            _requests = await Http.GetFromJsonAsync<List<TowingRequestDTO>>("api/jobrequests/my");
+            StateHasChanged();
+        };
+    }
+
+    private async Task SubmitNewRequest()
+    {
+        await _form.Validate();
+
+        if (_form.IsValid)
+        {
+            var response = await Http.PostAsJsonAsync("api/jobrequests", _newRequest);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _newRequest = new();
+                _requests = await Http.GetFromJsonAsync<List<TowingRequestDTO>>("api/jobrequests/my");
+            }
+        }
+    }
+}

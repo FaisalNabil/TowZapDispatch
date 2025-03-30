@@ -1,0 +1,62 @@
+﻿@page "/admin/dashboard"
+@inject HttpClient Http
+
+<MudPaper Class="pa-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">Administrator Dashboard</MudText>
+
+    <MudTabs>
+        <MudTabPanel Text="Pending Drivers">
+            <MudTable Items="_pendingDrivers" Hover="true" Elevation="1">
+                <HeaderContent>
+                    <MudTh>Email</MudTh>
+                    <MudTh>Full Name</MudTh>
+                    <MudTh>Action</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Email</MudTd>
+                    <MudTd>@($"{context.FirstName} {context.LastName}")</MudTd>
+                    <MudTd>
+                        <MudButton Color="Color.Success" OnClick="@(() => ApproveDriver(context.Id))">Approve</MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Towing Requests">
+            <MudTable Items="_guestRequests" Hover="true">
+                <HeaderContent>
+                    <MudTh>Guest Name</MudTh>
+                    <MudTh>From</MudTh>
+                    <MudTh>To</MudTh>
+                    <MudTh>Status</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.GuestName</MudTd>
+                    <MudTd>@context.AddressFrom</MudTd>
+                    <MudTd>@context.AddressTo</MudTd>
+                    <MudTd>@context.Status</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+    </MudTabs>
+</MudPaper>
+
+@code {
+    private List<UserDTO> _pendingDrivers = new();
+    private List<TowingRequestDTO> _guestRequests = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _pendingDrivers = await Http.GetFromJsonAsync<List<UserDTO>>("api/users/pending-drivers");
+        _guestRequests = await Http.GetFromJsonAsync<List<TowingRequestDTO>>("api/jobrequests/admin-list");
+    }
+
+    private async Task ApproveDriver(string userId)
+    {
+        var response = await Http.PostAsync($"api/auth/approve-driver/{userId}", null);
+        if (response.IsSuccessStatusCode)
+        {
+            _pendingDrivers.RemoveAll(x => x.Id == userId);
+        }
+    }
+}
