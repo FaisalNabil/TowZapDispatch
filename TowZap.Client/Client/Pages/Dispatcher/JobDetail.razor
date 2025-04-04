@@ -1,0 +1,139 @@
+﻿@page "/dispatcher/job/{JobId:int}"
+@using Dispatch.Domain.Enums
+@using Microsoft.AspNetCore.SignalR.Client  
+@inject IJobRequestService JobService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<h3>Job Detail</h3>
+
+@if (job == null)
+{
+    <p>Loading job details...</p>
+}
+else
+{
+    <div class="mb-3">
+        <button class="btn btn-secondary" @onclick="GoBack">← Back to Jobs</button>
+    </div>
+
+    <div class="row">
+        <!-- Map & Status -->
+        <div class="col-md-6">
+            <div class="card mb-3 p-3">
+                <h5>Driver Location</h5>
+                <div id="map" style="height: 300px; width: 100%;"></div>
+            </div>
+
+            <div class="card p-3">
+                <h5>Status Timeline</h5>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    @foreach (JobStatus status in Enum.GetValues(typeof(JobStatus)))
+                    {
+                        var stepClass = job.Status >= status ? "bg-success text-white" : "bg-light";
+                        <div class="text-center flex-fill mx-1">
+                            <div class="rounded-circle p-2 mb-1 @stepClass" style="width: 40px; height: 40px; line-height: 40px;">
+                                @((int)status + 1)
+                            </div>
+                            <small>@status</small>
+                        </div>
+                    }
+                </div>
+
+
+                <div class="mt-3">
+                    <label>Update Job Status</label>
+                    <InputSelect class="form-select" @bind-Value="selectedStatus">
+                        @foreach (var status in AllowedNextStatuses)
+                        {
+                            <option value="@status">@status</option>
+                        }
+                    </InputSelect>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Job Info -->
+        <div class="col-md-6">
+            <div class="card p-3">
+                <h5>Job Info</h5>
+                <p><strong>Caller:</strong> @job.CallerName (@job.CallerPhone)</p>
+                <p><strong>Vehicle:</strong> @job.Make @job.Model - @job.PlateNumber</p>
+                <p><strong>Reason:</strong> @job.Reason</p>
+                <p><strong>From:</strong> @job.FromLocation</p>
+                <p><strong>To:</strong> @job.ToLocation</p>
+                <p><strong>Tow Truck:</strong> @job.AssignedTowTruck</p>
+                <p><strong>Created:</strong> @job.CreatedAt.ToString("g")</p>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int JobId { get; set; }
+    private HubConnection _hub;
+
+    private JobResponseDTO job;
+    private JobStatus[] AllowedNextStatuses => job.Status switch
+    {
+        JobStatus.Pending => new[] { JobStatus.Assigned, JobStatus.Cancelled },
+        JobStatus.Assigned => new[] { JobStatus.EnRoute, JobStatus.Cancelled },
+        JobStatus.EnRoute => new[] { JobStatus.Arrived, JobStatus.Cancelled },
+        JobStatus.Arrived => new[] { JobStatus.Towing, JobStatus.Cancelled },
+        JobStatus.Towing => new[] { JobStatus.Completed },
+        _ => Array.Empty<JobStatus>()
+    };
+
+    private JobStatus selectedStatus;
+
+    protected override async Task OnInitializedAsync()
+    {
+        job = await JobService.GetJobByIdAsync(JobId);
+        selectedStatus = job.Status;
+
+        await JS.InvokeVoidAsync("initMap", job.FromLocation, job.ToLocation);
+
+        // SignalR integration can be added here
+    }
+
+    private async Task UpdateStatus()
+    {
+        if (!IsValidTransition(job.Status, selectedStatus))
+            await JS.InvokeVoidAsync("toast.error", "Invalid status transition.");
+
+        var success = await JobService.UpdateJobStatusAsync(JobId, selectedStatus);
+        if (success)
+        {
+            job.Status = selectedStatus;
+            await JS.InvokeVoidAsync("toast.success", "Status updated.");
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("toast.error", "Failed to update.");
+        }
+    }
+
+    private bool IsValidTransition(JobStatus current, JobStatus next) =>
+    current switch
+    {
+        JobStatus.Pending => next is JobStatus.Assigned or JobStatus.Cancelled,
+        JobStatus.Assigned => next is JobStatus.EnRoute or JobStatus.Cancelled,
+        JobStatus.EnRoute => next is JobStatus.Arrived or JobStatus.Cancelled,
+        JobStatus.Arrived => next is JobStatus.Towing or JobStatus.Cancelled,
+        JobStatus.Towing => next == JobStatus.Completed,
+        _ => false
+    };
+
+
+    private string GetBadgeClass(JobStatus status)
+    {
+        return status switch
+        {
+            var s when s == job.Status => "badge bg-success",
+            _ => "badge bg-secondary"
+        };
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/dispatcher/jobs");
+}

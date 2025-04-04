@@ -2,47 +2,96 @@
 @inject NavigationManager Navigation
 @inject ILocalStorageService LocalStorage
 @inject UserContext UserContext
+@inject AuthenticationStateProvider AuthProvider
+@inject TowZap.Client.Client.Service.IAuthService AuthService
 
-<MudLayout>
-    <MudDrawer Open="true" ClipMode="DrawerClipMode.Always">
-        <MudNavMenu>
-            @if (UserContext.Role == "Administrator")
-            {
-                <MudNavLink Href="/admin/dashboard" Icon="@Icons.Material.Filled.Dashboard">Admin Dashboard</MudNavLink>
-                <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People">Guest Users</MudNavLink>
-            }
-            else if (UserContext.Role == "Dispatcher")
-            {
-                <MudNavLink Href="/dispatcher/jobs" Icon="@Icons.Material.Filled.LocalShipping">Job Assignments</MudNavLink>
-                <MudNavLink Href="/dispatcher/map" Icon="@Icons.Material.Filled.Map">Live Map</MudNavLink>
-            }
-            else if (UserContext.Role == "Driver")
-            {
-                <MudNavLink Href="/driver/myjob" Icon="@Icons.Material.Filled.Assignment">My Job</MudNavLink>
-            }
-            else if (UserContext.Role == "GuestUser")
-            {
-                <MudNavLink Href="/guest/request" Icon="@Icons.Material.Filled.AddCircle">New Request</MudNavLink>
-                <MudNavLink Href="/guest/status" Icon="@Icons.Material.Filled.LocationOn">Track Driver</MudNavLink>
-            }
-        </MudNavMenu>
-    </MudDrawer>
+@if (string.IsNullOrWhiteSpace(UserContext.Role))
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="d-flex">
+        <!-- Sidebar -->
+        <div class="bg-light p-3 border-end" style="width: 250px; min-height: 100vh;">
+            <h5 class="mb-4">TowZap</h5>
+            <ul class="nav flex-column">
+                @switch (UserContext.Role)
+                {
+                    case UserRoles.Administrator:
+                    case UserRoles.CompanyAdministrator:
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/dashboard">Admin Dashboard</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/users">Manage Users</a>
+                        </li>
+                        break;
 
-    <MudMainContent>
-        @Body
-    </MudMainContent>
+                    case UserRoles.Dispatcher:
+                        <li class="nav-item">
+                            <a class="nav-link" href="/dispatcher/jobs">Job Assignments</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/dispatcher/map">Live Map</a>
+                        </li>
+                        break;
 
-    <MudAppBar Color="Color.Primary">
-        <MudText Typo="Typo.h6">TowZap Dispatch</MudText>
-        <MudSpacer />
-        <MudButton Variant="Variant.Outlined" OnClick="@Logout">Logout</MudButton>
-    </MudAppBar>
-</MudLayout>
+                    case UserRoles.Driver:
+                        <li class="nav-item">
+                            <a class="nav-link" href="/driver/myjob">My Job</a>
+                        </li>
+                        break;
+
+                    case UserRoles.GuestUser:
+                        <li class="nav-item">
+                            <a class="nav-link" href="/guest/request">New Request</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/guest/status">Track Driver</a>
+                        </li>
+                        break;
+                }
+                <li class="nav-item mt-3">
+                    <button class="btn btn-outline-danger w-100" @onclick="Logout">Logout</button>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-grow-1 p-4">
+            @Body
+        </div>
+    </div>
+}
 
 @code {
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UserContext.Role))
+        {
+            var state = await AuthProvider.GetAuthenticationStateAsync();
+            var user = state.User;
+
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                UserContext.FullName = user.FindFirst("name")?.Value;
+                UserContext.Role = user.FindFirst(ClaimTypes.Role)?.Value;
+                UserContext.CompanyId = Guid.TryParse(user.FindFirst("CompanyId")?.Value, out var cid)
+                    ? cid : Guid.Empty;
+            }
+        }
+    }
+
     private async Task Logout()
     {
+        await AuthService.LogoutAsync();
         await LocalStorage.RemoveItemAsync("authToken");
-        Navigation.NavigateTo("/login", true);
+        UserContext.Clear();
+        Navigation.NavigateTo("/login", forceLoad: true);
     }
 }

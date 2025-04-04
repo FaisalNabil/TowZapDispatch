@@ -23,7 +23,8 @@ namespace Dispatch.Infrastructure.Services
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(ClaimTypes.Name, user.UserName ?? ""),
-                new Claim(ClaimTypes.Email, user.Email ?? "")
+                new Claim(ClaimTypes.Email, user.Email ?? ""),
+                new Claim("CompanyId", user.CompanyId.ToString())
             };
 
             foreach (var role in roles)

@@ -9,6 +9,11 @@ using iText.Forms.Fields;
 using System.Security.Claims;
 using Dispatch.API.Hubs;
 using Microsoft.AspNetCore.SignalR;
+using Dispatch.Application.DTOs.Request;
+using Dispatch.Domain.Enums;
+using System.Data;
+using System.Dynamic;
+using Dispatch.Domain.Constants;
 
 namespace Dispatch.API.Controllers
 {
@@ -31,65 +36,133 @@ namespace Dispatch.API.Controllers
         }
 
         [HttpGet("dispatcher")]
-        [Authorize(Roles = "Dispatcher")]
+        [Authorize(Roles = UserRoles.Dispatcher)]
         public IActionResult GetByDispatcher()
         {
-            var userId = User.Claims.FirstOrDefault(c => c.Type.Contains("nameidentifier"))?.Value;
-            var jobs = _context.JobRequests.Where(j => j.CreatedByUserId == userId).ToList();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var jobs = _context.JobRequests
+                .Where(j => j.AssignedDriverId == userId)
+                .ToList();
             return Ok(jobs);
         }
 
         [HttpGet("driver")]
-        [Authorize(Roles = "Driver")]
+        [Authorize(Roles = UserRoles.Driver)]
         public IActionResult GetByDriver()
         {
-            var userId = User.Claims.FirstOrDefault(c => c.Type.Contains("nameidentifier"))?.Value;
-            var jobIds = _context.DriverStatuses.Where(s => s.DriverUserId == userId).Select(s => s.JobRequestId).Distinct();
-            var jobs = _context.JobRequests.Where(j => jobIds.Contains(j.Id)).ToList();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var jobs = _context.JobRequests
+                .Where(j => j.AssignedDriverId == userId)
+                .ToList();
+            return Ok(jobs);
+        }
+        [HttpGet("company")]
+        [Authorize(Roles = UserRoles.CompanyAdministrator)]
+        public IActionResult GetForCompany()
+        {
+            var companyId = User.FindFirst("CompanyId")?.Value;
+            if (string.IsNullOrEmpty(companyId)) return Unauthorized("Company not found.");
+            var parsed = Guid.Parse(companyId);
+            var jobs = _context.JobRequests
+                .Where(j => j.CompanyId == parsed)
+                .ToList();
             return Ok(jobs);
         }
 
-        [HttpGet("guest")]
-        [Authorize(Roles = "GuestUser")]
-        public IActionResult GetForGuest()
+        [HttpDelete("{jobId}")]
+        [Authorize(Roles = UserRoles.Dispatcher)]
+        public async Task<IActionResult> DeleteJob(int jobId)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var jobs = _context.JobRequests.Where(j => j.CreatedByUserId == userId).ToList();
-            return Ok(jobs);
+            var job = await _context.JobRequests.FindAsync(jobId);
+            if (job == null) return NotFound("Job not found.");
+
+            _context.JobRequests.Remove(job);
+            await _context.SaveChangesAsync();
+            return Ok("Job deleted successfully.");
+        }
+
+        [HttpGet("{id:int}")]
+        [Authorize(Roles = UserRoles.Dispatcher + "," + UserRoles.CompanyAdministrator)]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var job = await _context.JobRequests.FindAsync(id);
+            if (job == null) return NotFound();
+
+            var dto = new JobResponseDTO
+            {
+                Id = job.Id,
+                CallerName = job.CallerName,
+                CallerPhone = job.CallerPhone,
+                Make = job.Make,
+                Model = job.Model,
+                PlateNumber = job.PlateNumber,
+                Reason = job.Reason,
+                FromLocation = job.FromLocation,
+                ToLocation = job.ToLocation,
+                AssignedDriverId = job.AssignedDriverId,
+                AssignedTowTruck = job.AssignedTowTruck,
+                Status = job.Status,
+                CreatedAt = job.CreatedAt
+            };
+
+            return Ok(dto);
         }
 
 
         [HttpPost]
-        [Authorize(Roles = "Dispatcher,Driver")]
-        public async Task<IActionResult> Create([FromForm] JobRequest request, IFormFile? photo)
+        [Authorize(Roles = UserRoles.Dispatcher)]
+        public async Task<IActionResult> Create([FromBody] CreateJobRequestDTO dto)
         {
-            if (photo != null)
+            try
             {
-                var uploadsDir = Path.Combine(_environment.WebRootPath, "uploads");
-                if (!Directory.Exists(uploadsDir))
-                    Directory.CreateDirectory(uploadsDir);
+                var dispatcherId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var companyId = User.FindFirst("CompanyId")?.Value;
 
-                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(photo.FileName);
-                var filePath = Path.Combine(uploadsDir, fileName);
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                if (dispatcherId == null || string.IsNullOrWhiteSpace(companyId))
+                    return Unauthorized("Missing user or company context.");
+
+                var job = new JobRequest
                 {
-                    await photo.CopyToAsync(stream);
-                }
-                request.PhotoPath = fileName;
+                    AccountName = dto.AccountName,
+                    CallerName = dto.CallerName,
+                    CallerPhone = dto.CallerPhone,
+
+                    VIN = dto.VIN,
+                    Year = dto.Year,
+                    Make = dto.Make,
+                    Model = dto.Model,
+                    Color = dto.Color,
+                    PlateNumber = dto.PlateNumber,
+                    StatePlate = dto.StatePlate,
+                    Keys = dto.Keys,
+                    UnitNumber = dto.UnitNumber,
+                    Odometer = dto.Odometer,
+
+                    Reason = dto.Reason,
+                    FromLocation = dto.FromLocation,
+                    ToLocation = dto.ToLocation,
+
+                    AssignedDriverId = dto.AssignedDriverId,
+                    AssignedTowTruck = dto.AssignedTowTruck,
+                    Status = JobStatus.Assigned, // Dispatcher assigns on creation
+
+                    CreatedAt = DateTime.UtcNow,
+                    CompanyId = Guid.Parse(companyId)
+                };
+
+                _context.JobRequests.Add(job);
+                await _context.SaveChangesAsync();
+
+                await _hubContext.Clients.Group(job.CompanyId.ToString()).SendAsync("JobCreated", job.Id);
+
+                return Ok(new { job.Id, Message = "Job created and driver assigned." });
             }
-
-            request.Id = Guid.NewGuid();
-            request.TowDate = request.TowDate == default ? DateTime.UtcNow : request.TowDate;
-            request.CreatedByUserId = User.Claims.FirstOrDefault(c => c.Type.Contains("nameidentifier"))?.Value;
-
-            if (!request.IsImpoundTriggered && request.AddressTo?.ToLower().Contains("vsf") == true)
-                request.IsImpoundTriggered = true;
-
-            _context.JobRequests.Add(request);
-            await _context.SaveChangesAsync();
-
-            return Ok(request);
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Failed to create job: {ex.Message}");
+            }
         }
+
 
         [HttpGet("photo/{filename}")]
         public IActionResult ViewPhoto(string filename)
@@ -105,11 +178,15 @@ namespace Dispatch.API.Controllers
         }
 
         [HttpPost("{jobId}/assign")]
-        [Authorize(Roles = "Dispatcher")]
+        [Authorize(Roles = UserRoles.Dispatcher)]
         public async Task<IActionResult> AssignJob(Guid jobId, [FromQuery] string driverUserId)
         {
             var job = await _context.JobRequests.FindAsync(jobId);
             if (job == null) return NotFound("Job not found.");
+
+            job.AssignedDriverId = driverUserId;
+            job.Status = JobStatus.Assigned;
+            await _context.SaveChangesAsync();
 
             var status = new DriverStatus
             {
@@ -127,6 +204,22 @@ namespace Dispatch.API.Controllers
 
             return Ok("Driver assigned successfully.");
         }
+        [HttpPut("{jobId}/status")]
+        [Authorize(Roles = $"{UserRoles.Dispatcher},{UserRoles.Driver}")]
+        public async Task<IActionResult> UpdateStatus(int jobId, [FromBody] JobStatus newStatus)
+        {
+            var job = await _context.JobRequests.FindAsync(jobId);
+            if (job == null) return NotFound("Job not found.");
+
+            job.Status = newStatus;
+            await _context.SaveChangesAsync();
+
+            await _hubContext.Clients.Group(job.CompanyId.ToString())
+                .SendAsync("JobStatusUpdated", jobId, newStatus.ToString());
+
+            return Ok("Status updated.");
+        }
+
 
         //[HttpPost("{jobId}/generate-notification-template")]
         //[Authorize(Roles = "Dispatcher")]

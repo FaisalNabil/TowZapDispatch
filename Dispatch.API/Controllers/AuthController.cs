@@ -1,6 +1,7 @@
 ﻿using Dispatch.Application.Common.Interface;
 using Dispatch.Application.DTOs.Auth;
 using Dispatch.Application.DTOs.Registration;
+using Dispatch.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
@@ -58,7 +59,7 @@ namespace Dispatch.API.Controllers
             return Ok("Guest user registered.");
         }
 
-        [Authorize(Roles = "Administrator,Dispatcher")]
+        [Authorize(Roles = UserRoles.CompanyAdministrator + "," + UserRoles.Dispatcher)]
         [HttpPost("approve-driver/{userId}")]
         public async Task<IActionResult> ApproveDriver(string userId)
         {

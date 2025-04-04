@@ -23,17 +23,17 @@ namespace Dispatch.API.Controllers
             _hubContext = hubContext;
         }
 
-        [HttpPost]
-        public async Task<IActionResult> UpdateStatus([FromBody] DriverStatus status)
-        {
-            status.Id = Guid.NewGuid();
-            status.Timestamp = DateTime.UtcNow;
-            _context.DriverStatuses.Add(status);
-            await _context.SaveChangesAsync(); 
+        //[HttpPost("update-location")]
+        //public async Task<IActionResult> UpdateStatus([FromBody] DriverStatus status)
+        //{
+        //    status.Id = Guid.NewGuid();
+        //    status.Timestamp = DateTime.UtcNow;
+        //    _context.DriverStatuses.Add(status);
+        //    await _context.SaveChangesAsync(); 
             
-            await _hubContext.Clients.Group(dto.JobId).SendAsync("ReceiveJobUpdate", dto.JobId);
+        //    await _hubContext.Clients.Group(dto.JobId).SendAsync("ReceiveJobUpdate", dto.JobId);
 
-            return Ok(status);
-        }
+        //    return Ok(status);
+        //}
     }
 }

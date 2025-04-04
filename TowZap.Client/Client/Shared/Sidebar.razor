@@ -22,7 +22,7 @@
 </nav>
 
 @code {
-    [Inject] IAuthService AuthService { get; set; }
+    [Inject] TowZap.Client.Client.Service.IAuthService AuthService { get; set; }
     [Inject] NavigationManager Navigation { get; set; }
 
     private async Task Logout()

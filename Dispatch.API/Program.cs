@@ -1,4 +1,4 @@
-using Dispatch.API;
+﻿using Dispatch.API;
 using Dispatch.API.Hubs;
 using Dispatch.Application.Common.Interface;
 using Dispatch.Domain.Entities;
@@ -16,11 +16,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add EF & Identity
+// Add EF Core
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Add JWT Auth
+// Add JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -39,34 +39,46 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// Register Services
+// ✅ CORS Policy (Allow specific origin like Blazor client)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowBlazorClient", policy =>
+    {
+        policy.WithOrigins("https://localhost:7049") // Or whatever your Blazor client runs on
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+// Add app services
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-builder.Services.AddControllers(); 
+builder.Services.AddControllers();
 builder.Services.AddSignalR();
 
 var app = builder.Build();
 
-// Swagger in dev only
+// Use Swagger only in development
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection(); builder.Services.AddSignalR();
 
-app.UseRouting();
+app.UseCors("AllowBlazorClient");
+
+app.UseHttpsRedirection();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<JobUpdateHub>("/hubs/jobUpdates");
 
-
-// Seed roles
+// Seed roles and default users
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;

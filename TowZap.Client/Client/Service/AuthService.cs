@@ -6,77 +6,48 @@ using System.Text.Json;
 using Dispatch.Application.DTOs.Auth;
 using Microsoft.AspNetCore.Components.Authorization;
 using Blazored.LocalStorage;
+using Dispatch.Application.DTOs.Registration;
 
 namespace TowZap.Client.Client.Service
 {
     public class AuthService : IAuthService
     {
-        private readonly HttpClient _httpClient;
-        private readonly AuthenticationStateProvider _authStateProvider;
+        private readonly HttpClient _http;
         private readonly ILocalStorageService _localStorage;
+        private readonly AuthenticationStateProvider _authStateProvider;
 
-        private const string TokenKey = "token";
-
-        public AuthService(HttpClient httpClient, AuthenticationStateProvider authStateProvider, ILocalStorageService localStorage)
+        public AuthService(HttpClient http, ILocalStorageService localStorage, AuthenticationStateProvider authStateProvider)
         {
-            _httpClient = httpClient;
-            _authStateProvider = authStateProvider;
+            _http = http;
             _localStorage = localStorage;
+            _authStateProvider = authStateProvider;
         }
 
-        public async Task<bool> LoginAsync(LoginRequestDTO loginModel)
+        public async Task<LoginResponseDTO> LoginAsync(LoginRequestDTO request)
         {
-            var response = await _httpClient.PostAsJsonAsync("api/auth/login", loginModel);
+            var response = await _http.PostAsJsonAsync("api/auth/login", request);
 
             if (!response.IsSuccessStatusCode)
-                return false;
+                throw new Exception("Invalid email or password");
 
             var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponseDTO>();
-            if (loginResponse != null)
-            {
-                await _localStorage.SetItemAsync("token", loginResponse.Token);
-                await _localStorage.SetItemAsync("role", loginResponse.Role);
-                await _localStorage.SetItemAsync("user", JsonSerializer.Serialize(loginResponse));
-                return true;
-            }
 
+            await _localStorage.SetItemAsync("authToken", loginResponse.Token);
             ((CustomAuthStateProvider)_authStateProvider).NotifyUserAuthentication(loginResponse.Token);
-            return true;
+
+            return loginResponse;
         }
 
         public async Task LogoutAsync()
         {
-            await _localStorage.RemoveItemAsync("token");
-            await _localStorage.RemoveItemAsync("role");
-            await _localStorage.RemoveItemAsync("user");
+            await _localStorage.RemoveItemAsync("authToken");
             ((CustomAuthStateProvider)_authStateProvider).NotifyUserLogout();
         }
-
-        public async Task<string> GetTokenAsync()
+        public async Task<bool> RegisterGuestAsync(GuestRegistrationDTO dto)
         {
-            return await _localStorage.GetItemAsync<string>("token");
+            var response = await _http.PostAsJsonAsync("api/auth/register-guest", dto);
+            return response.IsSuccessStatusCode;
         }
 
-        public async Task<bool> IsAuthenticatedAsync()
-        {
-            var token = await GetTokenAsync();
-            return !string.IsNullOrEmpty(token);
-        }
-
-        public async Task<string> GetUserRoleAsync()
-        {
-            var token = await GetTokenAsync();
-            var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(token);
-            return jwtToken?.Claims?.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value ?? string.Empty;
-        }
-
-        public async Task<string> GetUserNameAsync()
-        {
-            var token = await GetTokenAsync();
-            var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(token);
-            return jwtToken?.Claims?.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
-        }
     }
 }

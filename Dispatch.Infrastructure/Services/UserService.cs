@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Identity;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Dispatch.Application.DTOs.User;
+using static System.Net.WebRequestMethods;
 
 namespace Dispatch.Infrastructure.Services
 {
@@ -26,27 +28,38 @@ namespace Dispatch.Infrastructure.Services
 
         public async Task<LoginResponseDTO> LoginAsync(LoginRequestDTO request)
         {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-            if (user == null)
-                return null;
-
-            var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
-            if (result == PasswordVerificationResult.Failed)
-                return null;
-
-            var roles = await _db.UserRoles
-                .Where(ur => ur.UserId == user.Id)
-                .Join(_db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
-                .ToListAsync();
-
-            var token = _jwtTokenService.GenerateToken(user, roles);
-
-            return new LoginResponseDTO
+            try
             {
-                Token = token,
-                FullName = $"{user.FirstName} {user.LastName}",
-                Role = roles.FirstOrDefault() ?? ""
-            };
+                var user = await _db.Users
+                                     .Where(x => x.Email == request.Email)
+                                     .SingleOrDefaultAsync();
+
+                if (user == null)
+                    return null;
+
+                var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+                if (result == PasswordVerificationResult.Failed)
+                    return null;
+
+                var roles = await _db.UserRoles
+                    .Where(ur => ur.UserId == user.Id)
+                    .Join(_db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
+                    .ToListAsync();
+
+                var token = _jwtTokenService.GenerateToken(user, roles);
+
+                return new LoginResponseDTO
+                {
+                    Token = token,
+                    FullName = $"{user.FirstName} {user.LastName}",
+                    Role = roles.FirstOrDefault() ?? ""
+                };
+            }
+            catch (Exception ex)
+            {
+
+                throw;
+            }
         }
 
         public async Task<IdentityResult> RegisterAsync(ApplicationUser user, string password, string role, Guid? companyId = null)
@@ -101,5 +114,57 @@ namespace Dispatch.Infrastructure.Services
             await _db.SaveChangesAsync();
             return IdentityResult.Success;
         }
+        public async Task<List<UserSummaryDTO>> GetUsersUnderCompanyAsync(Guid companyId)
+        {
+            var users = await _db.Users
+                .Where(u => u.CompanyId == companyId)
+                .Select(u => new UserSummaryDTO
+                {
+                    Id = u.Id,
+                    FullName = u.FirstName + " " + u.LastName,
+                    Email = u.Email,
+                    PhoneNumber = u.PhoneNumber,
+                    Role = (from ur in _db.UserRoles
+                            join r in _db.Roles on ur.RoleId equals r.Id
+                            where ur.UserId == u.Id
+                            select r.Name).FirstOrDefault(),
+                    IsActive = !u.IsDisabled
+                })
+                .ToListAsync();
+
+            return users;
+        }
+        public async Task<ApplicationUser?> GetUserByIdAsync(string userId)
+        {
+            return await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        }
+
+        public async Task<IdentityResult> PromoteUserAsync(string userId, string newRole)
+        {
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null)
+                return IdentityResult.Failed(new IdentityError { Description = "User not found." });
+
+            // Remove existing role(s)
+            var userRoles = _db.UserRoles.Where(ur => ur.UserId == userId);
+            _db.UserRoles.RemoveRange(userRoles);
+
+            // Add new role
+            var newRoleId = await _db.Roles.Where(r => r.Name == newRole).Select(r => r.Id).FirstOrDefaultAsync();
+            if (string.IsNullOrEmpty(newRoleId))
+                return IdentityResult.Failed(new IdentityError { Description = $"Role '{newRole}' does not exist." });
+
+            _db.UserRoles.Add(new ApplicationUserRole
+            {
+                UserId = userId,
+                RoleId = newRoleId
+            });
+
+            await _db.SaveChangesAsync();
+            return IdentityResult.Success;
+        }
+
+
+
     }
 }

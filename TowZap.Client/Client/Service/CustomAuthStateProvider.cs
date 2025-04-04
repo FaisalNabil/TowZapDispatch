@@ -9,7 +9,6 @@ namespace TowZap.Client.Client.Service
     public class CustomAuthStateProvider : AuthenticationStateProvider
     {
         private readonly ILocalStorageService _localStorage;
-        private const string TokenKey = "token";
 
         public CustomAuthStateProvider(ILocalStorageService localStorage)
         {
@@ -18,34 +17,40 @@ namespace TowZap.Client.Client.Service
 
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
-            var token = await _localStorage.GetItemAsync<string>(TokenKey);
-            if (string.IsNullOrWhiteSpace(token))
-                return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+            var token = await _localStorage.GetItemAsync<string>("authToken");
+            var identity = new ClaimsIdentity();
 
-            var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(token);
-            var claims = jwtToken.Claims;
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                var handler = new JwtSecurityTokenHandler();
+                var jwt = handler.ReadJwtToken(token);
 
-            var identity = new ClaimsIdentity(claims, "jwt");
-            var user = new ClaimsPrincipal(identity);
+                var claims = jwt.Claims;
+                identity = new ClaimsIdentity(claims, "jwt");
+            }
 
-            return new AuthenticationState(user);
+            return new AuthenticationState(new ClaimsPrincipal(identity));
         }
 
         public void NotifyUserAuthentication(string token)
         {
-            var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(token);
-            var identity = new ClaimsIdentity(jwtToken.Claims, "jwt");
+            var identity = new ClaimsIdentity(ParseClaimsFromJwt(token), "jwt");
             var user = new ClaimsPrincipal(identity);
-
             NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
         }
 
         public void NotifyUserLogout()
         {
-            var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
-            NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(anonymous)));
+            var identity = new ClaimsIdentity();
+            var user = new ClaimsPrincipal(identity);
+            NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
+        }
+
+        private IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.ReadJwtToken(jwt);
+            return token.Claims;
         }
     }
 }

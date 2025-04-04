@@ -4,14 +4,35 @@ namespace Dispatch.API.Hubs
 {
     public class JobUpdateHub : Hub
     {
-        public async Task JoinJobRoom(string jobId)
+        public override async Task OnConnectedAsync()
         {
-            await Groups.AddToGroupAsync(Context.ConnectionId, jobId);
+            var httpContext = Context.GetHttpContext();
+            var jobId = httpContext?.Request.Query["jobId"].ToString();
+
+            if (!string.IsNullOrEmpty(jobId))
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, jobId);
+            }
+
+            await base.OnConnectedAsync();
         }
 
-        public async Task LeaveJobRoom(string jobId)
+        public override async Task OnDisconnectedAsync(Exception? exception)
         {
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, jobId);
+            var httpContext = Context.GetHttpContext();
+            var jobId = httpContext?.Request.Query["jobId"].ToString();
+
+            if (!string.IsNullOrEmpty(jobId))
+            {
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, jobId);
+            }
+
+            await base.OnDisconnectedAsync(exception);
         }
+        public async Task SendLocationUpdate(string jobId, double lat, double lng)
+        {
+            await Clients.Group(jobId).SendAsync("ReceiveLocationUpdate", lat, lng);
+        }
+
     }
 }

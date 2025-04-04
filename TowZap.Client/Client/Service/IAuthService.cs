@@ -5,16 +5,15 @@ using System.Security.Claims;
 using System.Text.Json;
 using Dispatch.Application.DTOs.Auth;
 using Microsoft.AspNetCore.Components.Authorization;
+using Dispatch.Application.DTOs.Registration;
 
 namespace TowZap.Client.Client.Service
 {
     public interface IAuthService
     {
-        Task<bool> LoginAsync(LoginRequestDTO loginModel);
-        Task LogoutAsync();
-        Task<string> GetTokenAsync();
-        Task<string> GetUserRoleAsync();
-        Task<string> GetUserNameAsync();
-        Task<bool> IsAuthenticatedAsync();
+        Task<LoginResponseDTO> LoginAsync(LoginRequestDTO request);
+        Task LogoutAsync(); 
+        Task<bool> RegisterGuestAsync(GuestRegistrationDTO model);
+
     }
 }

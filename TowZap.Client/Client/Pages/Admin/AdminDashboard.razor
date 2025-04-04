@@ -1,62 +1,77 @@
 ﻿@page "/admin/dashboard"
-@inject HttpClient Http
+@inject IClientUserService UserService
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = UserRoles.Administrator + "," + UserRoles.CompanyAdministrator)]
 
-<MudPaper Class="pa-4">
-    <MudText Typo="Typo.h4" GutterBottom="true">Administrator Dashboard</MudText>
+<h3 class="mb-4">Company Users</h3>
 
-    <MudTabs>
-        <MudTabPanel Text="Pending Drivers">
-            <MudTable Items="_pendingDrivers" Hover="true" Elevation="1">
-                <HeaderContent>
-                    <MudTh>Email</MudTh>
-                    <MudTh>Full Name</MudTh>
-                    <MudTh>Action</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>@context.Email</MudTd>
-                    <MudTd>@($"{context.FirstName} {context.LastName}")</MudTd>
-                    <MudTd>
-                        <MudButton Color="Color.Success" OnClick="@(() => ApproveDriver(context.Id))">Approve</MudButton>
-                    </MudTd>
-                </RowTemplate>
-            </MudTable>
-        </MudTabPanel>
-
-        <MudTabPanel Text="Towing Requests">
-            <MudTable Items="_guestRequests" Hover="true">
-                <HeaderContent>
-                    <MudTh>Guest Name</MudTh>
-                    <MudTh>From</MudTh>
-                    <MudTh>To</MudTh>
-                    <MudTh>Status</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>@context.GuestName</MudTd>
-                    <MudTd>@context.AddressFrom</MudTd>
-                    <MudTd>@context.AddressTo</MudTd>
-                    <MudTd>@context.Status</MudTd>
-                </RowTemplate>
-            </MudTable>
-        </MudTabPanel>
-    </MudTabs>
-</MudPaper>
+@if (users == null)
+{
+    <p>Loading users...</p>
+}
+else if (!users.Any())
+{
+    <p>No users found for your company.</p>
+}
+else
+{
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Role</th>
+                <th>Active?</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in users)
+            {
+                <tr>
+                    <td>@user.FullName</td>
+                    <td>@user.Email</td>
+                    <td>@user.PhoneNumber</td>
+                    <td>@user.Role</td>
+                    <td>@user.IsActive</td>
+                    <td>
+                        @if (user.Role == "GuestUser")
+                        {
+                            <button class="btn btn-sm btn-success me-2" @onclick="@(() => Promote(user.Id))">
+                                Promote to Dispatcher
+                            </button>
+                        }
+                        else
+                        {
+                            <span class="text-muted">-</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
 
 @code {
-    private List<UserDTO> _pendingDrivers = new();
-    private List<TowingRequestDTO> _guestRequests = new();
+    private List<UserSummaryDTO> users;
 
     protected override async Task OnInitializedAsync()
     {
-        _pendingDrivers = await Http.GetFromJsonAsync<List<UserDTO>>("api/users/pending-drivers");
-        _guestRequests = await Http.GetFromJsonAsync<List<TowingRequestDTO>>("api/jobrequests/admin-list");
+        users = await UserService.GetUsersByCompanyAsync();
     }
 
-    private async Task ApproveDriver(string userId)
+    private async Task Promote(string userId)
     {
-        var response = await Http.PostAsync($"api/auth/approve-driver/{userId}", null);
-        if (response.IsSuccessStatusCode)
+        var success = await UserService.PromoteToDispatcherAsync(userId);
+        if (success)
         {
-            _pendingDrivers.RemoveAll(x => x.Id == userId);
+            await JS.InvokeVoidAsync("toastr.success", "User promoted successfully!");
+            users = await UserService.GetUsersByCompanyAsync(); // Refresh
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("toastr.error", "Promotion failed.");
         }
     }
 }

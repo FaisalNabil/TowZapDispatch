@@ -2,9 +2,16 @@
 {
     public class UserContext
     {
-        public string Role { get; set; } = "GuestUser";
+        public string Role { get; set; }
         public string Token { get; set; }
         public string FullName { get; set; }
-        public bool IsAuthenticated => !string.IsNullOrEmpty(Token);
+        public Guid CompanyId { get; set; }
+        public bool IsAuthenticated => !string.IsNullOrEmpty(Token); 
+        public void Clear()
+        {
+            Role = null;
+            FullName = null;
+        }
+
     }
 }

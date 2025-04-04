@@ -35,11 +35,6 @@ namespace Dispatch.Infrastructure.Persistence
                 .WithMany(r => r.UserRoles)
                 .HasForeignKey(ur => ur.RoleId);
 
-            // Example precision setup
-            modelBuilder.Entity<JobRequest>()
-                .Property(j => j.TowAmount)
-                .HasPrecision(18, 2);
-
             modelBuilder.Entity<ImpoundFeeRecord>()
                 .Property(f => f.TotalFee)
                 .HasPrecision(18, 2);

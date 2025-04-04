@@ -31,11 +31,11 @@ public class NotificationLetterService
             var font = new XFont("Verdana", 12);
 
             gfx.DrawString("1st Notification Letter", font, XBrushes.Black, new XRect(0, 0, page.Width, 40), XStringFormats.Center);
-            gfx.DrawString($"Tow Date: {job.TowDate}", font, XBrushes.Black, new XPoint(40, 80));
-            gfx.DrawString($"Vehicle: {job.Year} {job.Make} {job.Model}", font, XBrushes.Black, new XPoint(40, 110));
-            gfx.DrawString($"License Plate: {job.LicensePlate}", font, XBrushes.Black, new XPoint(40, 140));
-            gfx.DrawString($"Towed From: {job.AddressFrom}", font, XBrushes.Black, new XPoint(40, 170));
-            gfx.DrawString($"Towed To: {job.AddressTo}", font, XBrushes.Black, new XPoint(40, 200));
+            //gfx.DrawString($"Tow Date: {job.TowDate}", font, XBrushes.Black, new XPoint(40, 80));
+            //gfx.DrawString($"Vehicle: {job.Year} {job.Make} {job.Model}", font, XBrushes.Black, new XPoint(40, 110));
+            //gfx.DrawString($"License Plate: {job.LicensePlate}", font, XBrushes.Black, new XPoint(40, 140));
+            //gfx.DrawString($"Towed From: {job.AddressFrom}", font, XBrushes.Black, new XPoint(40, 170));
+            //gfx.DrawString($"Towed To: {job.AddressTo}", font, XBrushes.Black, new XPoint(40, 200));
 
             doc.Save(filePath);
         }

@@ -1,4 +1,5 @@
 ﻿using Dispatch.Application.DTOs.Auth;
+using Dispatch.Application.DTOs.User;
 using Dispatch.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using System;
@@ -13,6 +14,12 @@ namespace Dispatch.Application.Common.Interface
     {
         Task<LoginResponseDTO> LoginAsync(LoginRequestDTO request);
         Task<IdentityResult> RegisterAsync(ApplicationUser user, string password, string role, Guid? companyId = null);
-        Task<IdentityResult> ApproveDriverAsync(string userId);
+        Task<IdentityResult> ApproveDriverAsync(string userId); 
+        Task<List<UserSummaryDTO>> GetUsersUnderCompanyAsync(Guid companyId); 
+        Task<ApplicationUser?> GetUserByIdAsync(string userId);
+
+        Task<IdentityResult> PromoteUserAsync(string userId, string newRole);
+
+
     }
 }
