@@ -8,7 +8,8 @@ namespace TowZap.Client.Client.Service
         private readonly ApiSettings _config;
         private HubConnection _connection;
 
-        public event Action<string> OnJobUpdated; 
+        public event Action<string> OnJobUpdated;
+        public event Action<double, double> OnLocationUpdated;
         public JobUpdateService(ApiSettings config)
         {
             _config = config;
@@ -27,6 +28,11 @@ namespace TowZap.Client.Client.Service
                 _connection.On<string>("ReceiveJobUpdate", (message) =>
                 {
                     OnJobUpdated?.Invoke(message);
+                });
+
+                _connection.On<double, double>("ReceiveLocationUpdate", (lat, lng) =>
+                {
+                    OnLocationUpdated?.Invoke(lat, lng);
                 });
 
                 await _connection.StartAsync();

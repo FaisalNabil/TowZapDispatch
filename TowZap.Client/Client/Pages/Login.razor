@@ -1,35 +1,29 @@
 ﻿@page "/login"
 @attribute [AllowAnonymous]
-@inject TowZap.Client.Client.Service.IAuthService AuthService
+@inject IAuthService AuthService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject UserContext UserContext
 @inject AuthenticationStateProvider AuthProvider
 
+<EditForm Model="@LoginModel" OnValidSubmit="LoginAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-4">
-            <h3 class="text-center mb-4">Login</h3>
-            <EditForm Model="@LoginModel" OnValidSubmit="LoginAsync">
-                <DataAnnotationsValidator />
-                <ValidationSummary />
-
-                <div class="mb-3">
-                    <label class="form-label">Email</label>
-                    <InputText class="form-control" @bind-Value="LoginModel.Email" />
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Password</label>
-                    <InputText type="password" class="form-control" @bind-Value="LoginModel.Password" />
-                </div>
-
-                <button type="submit" class="btn btn-primary w-100">Login</button>
-            </EditForm>
-        </div>
+    <div class="mb-3">
+        <InputText class="form-control form-control-lg bg-light" @bind-Value="LoginModel.Email" placeholder="Email" />
     </div>
-</div>
+    <div class="mb-3">
+        <InputText class="form-control form-control-lg bg-light" type="password" @bind-Value="LoginModel.Password" placeholder="Password" />
+    </div>
+    <div class="d-grid">
+        <button type="submit" class="btn btn-primary btn-lg">Login</button>
+    </div>
+
+    <div class="mt-3 text-center">
+        <small>Don't have an account? <a href="/register">Register</a></small>
+    </div>
+</EditForm>
 
 @code {
     private LoginRequestDTO LoginModel = new();
@@ -47,7 +41,7 @@
             {
                 UserRoles.Administrator => "/admin/dashboard",
                 UserRoles.CompanyAdministrator => "/admin/dashboard",
-                UserRoles.Dispatcher => "/dispatcher/jobs",
+                UserRoles.Dispatcher => "/dispatcher/dashboard",
                 UserRoles.Driver => "/driver/myjob",
                 UserRoles.GuestUser => "/guest/request",
                 _ => "/"
@@ -62,27 +56,23 @@
         try
         {
             var result = await AuthService.LoginAsync(LoginModel);
+
             await JS.InvokeVoidAsync("toast.success", "Login successful");
 
-            // Notify the authentication system
+            // Notify system — CustomAuthStateProvider will populate context
             ((CustomAuthStateProvider)AuthProvider).NotifyUserAuthentication(result.Token);
 
-            // Populate UserContext from JWT claims
-            var handler = new JwtSecurityTokenHandler();
-            var token = handler.ReadJwtToken(result.Token);
-            var claims = token.Claims.ToList();
+            // Wait for AuthStateProvider to populate context
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
 
-            UserContext.FullName = claims.FirstOrDefault(c => c.Type == "name")?.Value ?? "";
-            UserContext.Role = claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value ?? "";
-            UserContext.CompanyId = Guid.TryParse(claims.FirstOrDefault(c => c.Type == "CompanyId")?.Value, out var cid)
-                ? cid : Guid.Empty;
+            var role = user.FindFirst(ClaimTypes.Role)?.Value;
 
-            // Redirect based on role
-            var redirect = UserContext.Role switch
+            var redirect = role switch
             {
                 UserRoles.Administrator => "/admin/dashboard",
                 UserRoles.CompanyAdministrator => "/admin/dashboard",
-                UserRoles.Dispatcher => "/dispatcher/jobs",
+                UserRoles.Dispatcher => "/dispatcher/dashboard",
                 UserRoles.Driver => "/driver/myjob",
                 UserRoles.GuestUser => "/guest/request",
                 _ => "/"
@@ -95,5 +85,6 @@
             await JS.InvokeVoidAsync("toast.error", ex.Message);
         }
     }
+
 
 }

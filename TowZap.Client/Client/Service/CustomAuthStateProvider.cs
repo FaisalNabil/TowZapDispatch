@@ -3,16 +3,19 @@ using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using System.Threading.Tasks;
 using Blazored.LocalStorage;
+using TowZap.Client.Client.Models;
 
 namespace TowZap.Client.Client.Service
 {
     public class CustomAuthStateProvider : AuthenticationStateProvider
     {
         private readonly ILocalStorageService _localStorage;
+        private readonly UserContext _userContext;
 
-        public CustomAuthStateProvider(ILocalStorageService localStorage)
+        public CustomAuthStateProvider(ILocalStorageService localStorage, UserContext userContext)
         {
             _localStorage = localStorage;
+            _userContext = userContext;
         }
 
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
@@ -25,8 +28,20 @@ namespace TowZap.Client.Client.Service
                 var handler = new JwtSecurityTokenHandler();
                 var jwt = handler.ReadJwtToken(token);
 
-                var claims = jwt.Claims;
-                identity = new ClaimsIdentity(claims, "jwt");
+                if (jwt.ValidTo > DateTime.UtcNow)
+                {
+                    identity = new ClaimsIdentity(jwt.Claims, "jwt");
+
+                    _userContext.Token = token;
+                    _userContext.Role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+                    _userContext.FullName = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value;
+                    _userContext.CompanyId = Guid.TryParse(jwt.Claims.FirstOrDefault(c => c.Type == "CompanyId")?.Value, out var cid)
+                        ? cid : Guid.Empty;
+                }
+                else
+                {
+                    await _localStorage.RemoveItemAsync("authToken");
+                }
             }
 
             return new AuthenticationState(new ClaimsPrincipal(identity));
@@ -41,9 +56,9 @@ namespace TowZap.Client.Client.Service
 
         public void NotifyUserLogout()
         {
-            var identity = new ClaimsIdentity();
-            var user = new ClaimsPrincipal(identity);
-            NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
+            _userContext.Clear();
+            var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
+            NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(anonymous)));
         }
 
         private IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
@@ -53,4 +68,5 @@ namespace TowZap.Client.Client.Service
             return token.Claims;
         }
     }
+
 }

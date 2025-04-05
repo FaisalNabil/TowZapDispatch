@@ -1,0 +1,28 @@
+﻿<div class="mb-2">
+    <strong>@Label:</strong> @SelectedAddress
+</div>
+<div id="@MapId" style="height: 300px;" class="rounded shadow-sm mb-3"></div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "Location";
+    [Parameter] public string MapId { get; set; }
+    [Parameter] public EventCallback<string> OnAddressChanged { get; set; }
+
+    private string SelectedAddress = string.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("maps.initLocationPicker", MapId, DotNetObjectReference.Create(this));
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnAddressSelected(string address)
+    {
+        SelectedAddress = address;
+        await OnAddressChanged.InvokeAsync(address);
+        StateHasChanged();
+    }
+}

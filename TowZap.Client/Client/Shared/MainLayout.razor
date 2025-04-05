@@ -1,92 +1,107 @@
 ﻿@inherits LayoutComponentBase
+@inject UserContext UserContext
+@inject IAuthService AuthService
 @inject NavigationManager Navigation
 @inject ILocalStorageService LocalStorage
-@inject UserContext UserContext
 @inject AuthenticationStateProvider AuthProvider
-@inject TowZap.Client.Client.Service.IAuthService AuthService
+@inject ExpiryService ExpiryService
 
-@if (string.IsNullOrWhiteSpace(UserContext.Role))
-{
-    <div class="text-center mt-5">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-    </div>
-}
-else
-{
-    <div class="d-flex">
-        <!-- Sidebar -->
-        <div class="bg-light p-3 border-end" style="width: 250px; min-height: 100vh;">
-            <h5 class="mb-4">TowZap</h5>
-            <ul class="nav flex-column">
-                @switch (UserContext.Role)
+<AuthorizeView>
+    <Authorized>
+        <div class="d-flex">
+            <!-- Sidebar -->
+            <div class="bg-light p-3 border-end" style="width: 250px; min-height: 100vh;">
+                <h5 class="mb-4">TowZap</h5>
+                <ul class="nav flex-column">
+                    @switch (UserContext.Role)
+                    {
+                        case UserRoles.Administrator:
+                        case UserRoles.CompanyAdministrator:
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/dashboard">Admin Dashboard</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/users">Manage Users</a>
+                            </li>
+                            break;
+
+                        case UserRoles.Dispatcher:
+                            <li class="nav-item">
+                                <a class="nav-link" href="/dispatcher/dashboard">Job Assignments</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/dispatcher/map">Live Map</a>
+                            </li>
+                            break;
+
+                        case UserRoles.Driver:
+                            <li class="nav-item">
+                                <a class="nav-link" href="/driver/myjob">My Job</a>
+                            </li>
+                            break;
+
+                        case UserRoles.GuestUser:
+                            <li class="nav-item">
+                                <a class="nav-link" href="/guest/request">New Request</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/guest/status">Track Driver</a>
+                            </li>
+                            break;
+                    }
+
+                    <li class="nav-item mt-3">
+                        <button class="btn btn-outline-danger w-100" @onclick="Logout">Logout</button>
+                    </li>
+                </ul>
+            </div>
+            @if (isExpired)
+            {
+                <div class="alert alert-danger text-center mt-5">
+                    ⛔ Access expired on @expiryDate?.ToString("yyyy-MM-dd"). Please contact the developer.
+                </div>
+            }
+            else
+            {
+                if (isExpiringSoon)
                 {
-                    case UserRoles.Administrator:
-                    case UserRoles.CompanyAdministrator:
-                        <li class="nav-item">
-                            <a class="nav-link" href="/admin/dashboard">Admin Dashboard</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="/admin/users">Manage Users</a>
-                        </li>
-                        break;
-
-                    case UserRoles.Dispatcher:
-                        <li class="nav-item">
-                            <a class="nav-link" href="/dispatcher/jobs">Job Assignments</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="/dispatcher/map">Live Map</a>
-                        </li>
-                        break;
-
-                    case UserRoles.Driver:
-                        <li class="nav-item">
-                            <a class="nav-link" href="/driver/myjob">My Job</a>
-                        </li>
-                        break;
-
-                    case UserRoles.GuestUser:
-                        <li class="nav-item">
-                            <a class="nav-link" href="/guest/request">New Request</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="/guest/status">Track Driver</a>
-                        </li>
-                        break;
+                    <div class="alert alert-warning text-center m-0" style="border-radius: 0;">
+                        ⚠️ Your application access will expire on <strong>@expiryDate?.ToString("yyyy-MM-dd")</strong>. Please contact the developer to renew.
+                    </div>
                 }
-                <li class="nav-item mt-3">
-                    <button class="btn btn-outline-danger w-100" @onclick="Logout">Logout</button>
-                </li>
-            </ul>
+                else
+                {
+                    <!-- Main content -->
+                    <div class="flex-grow-1 p-4">
+                        @Body
+                    </div>
+                }
+            }
         </div>
+    </Authorized>
 
-        <!-- Main Content -->
-        <div class="flex-grow-1 p-4">
-            @Body
-        </div>
-    </div>
-}
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
 
 @code {
+    private DateTime? expiryDate;
+    private bool isExpiringSoon;
+    private bool isExpired;
+
     protected override async Task OnInitializedAsync()
     {
-        if (string.IsNullOrWhiteSpace(UserContext.Role))
-        {
-            var state = await AuthProvider.GetAuthenticationStateAsync();
-            var user = state.User;
+        expiryDate = await ExpiryService.GetExpiryAsync();
 
-            if (user.Identity?.IsAuthenticated == true)
-            {
-                UserContext.FullName = user.FindFirst("name")?.Value;
-                UserContext.Role = user.FindFirst(ClaimTypes.Role)?.Value;
-                UserContext.CompanyId = Guid.TryParse(user.FindFirst("CompanyId")?.Value, out var cid)
-                    ? cid : Guid.Empty;
-            }
+        if (expiryDate.HasValue)
+        {
+            var daysLeft = (expiryDate.Value - DateTime.UtcNow).TotalDays;
+
+            isExpired = daysLeft < 0;
+            isExpiringSoon = daysLeft is > 0 and <= 14;
         }
     }
-
     private async Task Logout()
     {
         await AuthService.LogoutAsync();

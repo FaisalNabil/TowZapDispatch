@@ -40,7 +40,8 @@ namespace Dispatch.Application.DTOs.Registration
             UserName = dto.Email,
             FirstName = dto.FullName,
             CompanyId = dto.CompanyId,
-            EmailConfirmed = true
+            EmailConfirmed = true,
+            PhoneNumber = dto.PhoneNumber
         };
     }
 }

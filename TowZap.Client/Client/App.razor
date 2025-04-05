@@ -3,7 +3,7 @@
         <Found Context="routeData">
             @if (IsPublicPage(routeData.PageType))
             {
-                <RouteView RouteData="@routeData" DefaultLayout="@typeof(EmptyLayout)" />
+                <RouteView RouteData="@routeData" DefaultLayout="@typeof(PublicLayout)" />
             }
             else
             {

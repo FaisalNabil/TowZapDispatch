@@ -1,63 +1,55 @@
-﻿@page "/dispatcher/job/{JobId:int}"
-@using Dispatch.Domain.Enums
-@using Microsoft.AspNetCore.SignalR.Client  
-@inject IJobRequestService JobService
+﻿@page "/dispatcher/job/{JobId:guid}"
+@inject IClientJobRequestService JobService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject JobUpdateService JobUpdateService
 
-<h3>Job Detail</h3>
+<h3 class="mb-3"><i class="fas fa-clipboard-list"></i> Job Detail</h3>
 
-@if (job == null)
+@if (job == null || jobStatusOptions == null)
 {
     <p>Loading job details...</p>
 }
 else
 {
     <div class="mb-3">
-        <button class="btn btn-secondary" @onclick="GoBack">← Back to Jobs</button>
+        <button class="btn btn-secondary" @onclick="GoBack">
+            <i class="fas fa-arrow-left"></i> Back to Jobs
+        </button>
     </div>
 
     <div class="row">
-        <!-- Map & Status -->
+        <!-- Left -->
         <div class="col-md-6">
-            <div class="card mb-3 p-3">
-                <h5>Driver Location</h5>
-                <div id="map" style="height: 300px; width: 100%;"></div>
+            <div class="card p-3 mb-3">
+                <h5><i class="fas fa-map-marked-alt"></i> Driver Location</h5>
+                <MapComponent @ref="MapRef" MapId="driverMap" Latitude="@jobLat" Longitude="@jobLng" />
             </div>
 
             <div class="card p-3">
-                <h5>Status Timeline</h5>
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    @foreach (JobStatus status in Enum.GetValues(typeof(JobStatus)))
-                    {
-                        var stepClass = job.Status >= status ? "bg-success text-white" : "bg-light";
-                        <div class="text-center flex-fill mx-1">
-                            <div class="rounded-circle p-2 mb-1 @stepClass" style="width: 40px; height: 40px; line-height: 40px;">
-                                @((int)status + 1)
-                            </div>
-                            <small>@status</small>
-                        </div>
-                    }
-                </div>
+                <h5><i class="fas fa-route"></i> Job Status</h5>
 
+                <JobStatusTimeline CurrentStatus="@job.Status.ToString()" Statuses="@jobStatusOptions" />
 
                 <div class="mt-3">
                     <label>Update Job Status</label>
                     <InputSelect class="form-select" @bind-Value="selectedStatus">
-                        @foreach (var status in AllowedNextStatuses)
+                        @foreach (var status in GetAllowedNextStatuses())
                         {
-                            <option value="@status">@status</option>
+                            <option value="@status.Value">@status.Label</option>
                         }
                     </InputSelect>
+                    <button class="btn btn-primary mt-2" @onclick="UpdateStatus">
+                        <i class="fas fa-check-circle"></i> Update
+                    </button>
                 </div>
-
             </div>
         </div>
 
-        <!-- Job Info -->
+        <!-- Right -->
         <div class="col-md-6">
             <div class="card p-3">
-                <h5>Job Info</h5>
+                <h5><i class="fas fa-info-circle"></i> Job Info</h5>
                 <p><strong>Caller:</strong> @job.CallerName (@job.CallerPhone)</p>
                 <p><strong>Vehicle:</strong> @job.Make @job.Model - @job.PlateNumber</p>
                 <p><strong>Reason:</strong> @job.Reason</p>
@@ -71,68 +63,71 @@ else
 }
 
 @code {
-    [Parameter] public int JobId { get; set; }
-    private HubConnection _hub;
+    [Parameter] public Guid JobId { get; set; }
 
     private JobResponseDTO job;
-    private JobStatus[] AllowedNextStatuses => job.Status switch
-    {
-        JobStatus.Pending => new[] { JobStatus.Assigned, JobStatus.Cancelled },
-        JobStatus.Assigned => new[] { JobStatus.EnRoute, JobStatus.Cancelled },
-        JobStatus.EnRoute => new[] { JobStatus.Arrived, JobStatus.Cancelled },
-        JobStatus.Arrived => new[] { JobStatus.Towing, JobStatus.Cancelled },
-        JobStatus.Towing => new[] { JobStatus.Completed },
-        _ => Array.Empty<JobStatus>()
-    };
+    private double jobLat = 23.8103;
+    private double jobLng = 90.4125;
 
-    private JobStatus selectedStatus;
+    private MapComponent MapRef;
+    private List<MetaEnumDTO> jobStatusOptions = new();
+    private string selectedStatus;
 
     protected override async Task OnInitializedAsync()
     {
         job = await JobService.GetJobByIdAsync(JobId);
-        selectedStatus = job.Status;
+        jobStatusOptions = await JobService.GetJobStatusesAsync();
 
-        await JS.InvokeVoidAsync("initMap", job.FromLocation, job.ToLocation);
+        selectedStatus = job.Status.ToString();
 
-        // SignalR integration can be added here
+        await JobUpdateService.StartConnectionAsync(JobId.ToString());
+
+        JobUpdateService.OnJobUpdated += async (message) =>
+        {
+            var parts = message.Split(',');
+            if (parts.Length == 2 &&
+                double.TryParse(parts[0], out var lat) &&
+                double.TryParse(parts[1], out var lng))
+            {
+                jobLat = lat;
+                jobLng = lng;
+                await MapRef.UpdateLocationAsync(lat, lng);
+                StateHasChanged();
+            }
+        };
+    }
+
+    private List<MetaEnumDTO> GetAllowedNextStatuses()
+    {
+        // You can enhance this logic based on domain rules
+        var current = job.Status.ToString();
+        var index = jobStatusOptions.FindIndex(s => s.Value == current);
+
+        if (index == -1 || index == jobStatusOptions.Count - 1)
+            return new List<MetaEnumDTO>();
+
+        return jobStatusOptions.Skip(index + 1).ToList();
     }
 
     private async Task UpdateStatus()
     {
-        if (!IsValidTransition(job.Status, selectedStatus))
-            await JS.InvokeVoidAsync("toast.error", "Invalid status transition.");
-
-        var success = await JobService.UpdateJobStatusAsync(JobId, selectedStatus);
-        if (success)
+        if (Enum.TryParse<JobStatus>(selectedStatus, out var parsedStatus))
         {
-            job.Status = selectedStatus;
-            await JS.InvokeVoidAsync("toast.success", "Status updated.");
+            var result = await JobService.UpdateJobStatusAsync(JobId, parsedStatus);
+            if (result)
+            {
+                await JS.InvokeVoidAsync("toast.success", "Status updated.");
+                job.Status = parsedStatus;
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("toast.error", "Failed to update status.");
+            }
         }
         else
         {
-            await JS.InvokeVoidAsync("toast.error", "Failed to update.");
+            await JS.InvokeVoidAsync("toast.error", "Invalid status selected.");
         }
-    }
-
-    private bool IsValidTransition(JobStatus current, JobStatus next) =>
-    current switch
-    {
-        JobStatus.Pending => next is JobStatus.Assigned or JobStatus.Cancelled,
-        JobStatus.Assigned => next is JobStatus.EnRoute or JobStatus.Cancelled,
-        JobStatus.EnRoute => next is JobStatus.Arrived or JobStatus.Cancelled,
-        JobStatus.Arrived => next is JobStatus.Towing or JobStatus.Cancelled,
-        JobStatus.Towing => next == JobStatus.Completed,
-        _ => false
-    };
-
-
-    private string GetBadgeClass(JobStatus status)
-    {
-        return status switch
-        {
-            var s when s == job.Status => "badge bg-success",
-            _ => "badge bg-secondary"
-        };
     }
 
     private void GoBack() => Navigation.NavigateTo("/dispatcher/jobs");

@@ -1,60 +1,134 @@
 ﻿@page "/admin/dashboard"
+@attribute [Authorize(Roles = UserRoles.Administrator + "," + UserRoles.CompanyAdministrator)]
 @inject IClientUserService UserService
 @inject IJSRuntime JS
-@attribute [Authorize(Roles = UserRoles.Administrator + "," + UserRoles.CompanyAdministrator)]
 
-<h3 class="mb-4">Company Users</h3>
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold"><i class="fas fa-users me-2"></i> Company Users</h2>
+        <button class="btn btn-primary" @onclick="ShowCreateUserModal">
+            <i class="fas fa-user-plus me-1"></i> Create User
+        </button>
+    </div>
 
-@if (users == null)
-{
-    <p>Loading users...</p>
-}
-else if (!users.Any())
-{
-    <p>No users found for your company.</p>
-}
-else
-{
-    <table class="table table-bordered table-striped">
-        <thead class="table-dark">
-            <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Role</th>
-                <th>Active?</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var user in users)
-            {
-                <tr>
-                    <td>@user.FullName</td>
-                    <td>@user.Email</td>
-                    <td>@user.PhoneNumber</td>
-                    <td>@user.Role</td>
-                    <td>@user.IsActive</td>
-                    <td>
-                        @if (user.Role == "GuestUser")
+    @if (users == null)
+    {
+        <div class="text-center">Loading users...</div>
+    }
+    else if (!users.Any())
+    {
+        <div class="alert alert-warning">No users found for your company.</div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-body table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in users)
                         {
-                            <button class="btn btn-sm btn-success me-2" @onclick="@(() => Promote(user.Id))">
-                                Promote to Dispatcher
-                            </button>
+                            <tr>
+                                <td>@user.FullName</td>
+                                <td>@user.Email</td>
+                                <td>@user.PhoneNumber</td>
+                                <td>
+                                    <span class="badge bg-secondary">@user.Role</span>
+                                </td>
+                                <td>
+                                    @if (user.IsActive)
+                                    {
+                                        <i class="fas fa-check-circle text-success"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-times-circle text-danger"></i>
+                                    }
+                                </td>
+                                <td>
+                                    @if (user.Role == UserRoles.GuestUser)
+                                    {
+                                        <button class="btn btn-sm btn-success" @onclick="@(() => Promote(user.Id))">
+                                            <i class="fas fa-arrow-up me-1"></i> Promote
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                            </tr>
                         }
-                        else
-                        {
-                            <span class="text-muted">-</span>
-                        }
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- User Creation Modal -->
+@if (showCreateModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="fas fa-user-plus me-1"></i> Create New User</h5>
+                    <button type="button" class="btn-close" @onclick="HideCreateUserModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@newUser" OnValidSubmit="CreateUserAsync">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-3">
+                            <label>Full Name</label>
+                            <InputText class="form-control" @bind-Value="newUser.FullName" />
+                        </div>
+                        <div class="mb-3">
+                            <label>Email</label>
+                            <InputText class="form-control" @bind-Value="newUser.Email" />
+                        </div>
+                        <div class="mb-3">
+                            <label>Phone</label>
+                            <InputText class="form-control" @bind-Value="newUser.PhoneNumber" />
+                        </div>
+                        <div class="mb-3">
+                            <label>Password</label>
+                            <InputText type="password" class="form-control" @bind-Value="newUser.Password" />
+                        </div>
+                        <div class="mb-3">
+                            <label>Role</label>
+                            <InputSelect class="form-select" @bind-Value="newUser.Role">
+                                <option value="">-- Select Role --</option>
+                                <option value="@UserRoles.Dispatcher">Dispatcher</option>
+                                <option value="@UserRoles.Driver">Driver</option>
+                                <option value="@UserRoles.GuestUser">Guest User</option>
+                            </InputSelect>
+                        </div>
+
+                        <button class="btn btn-success w-100">Create</button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
 }
+
 
 @code {
     private List<UserSummaryDTO> users;
+    private bool showCreateModal = false;
+    private AdminCreateUserDTO newUser = new() { Role = "" };
 
     protected override async Task OnInitializedAsync()
     {
@@ -67,11 +141,38 @@ else
         if (success)
         {
             await JS.InvokeVoidAsync("toastr.success", "User promoted successfully!");
-            users = await UserService.GetUsersByCompanyAsync(); // Refresh
+            users = await UserService.GetUsersByCompanyAsync();
         }
         else
         {
             await JS.InvokeVoidAsync("toastr.error", "Promotion failed.");
         }
     }
+
+    private void ShowCreateUserModal()
+    {
+        newUser = new AdminCreateUserDTO { Role = "" };
+        showCreateModal = true;
+    }
+
+    private void HideCreateUserModal()
+    {
+        showCreateModal = false;
+    }
+
+    private async Task CreateUserAsync()
+    {
+        var result = await UserService.CreateUserByAdminAsync(newUser);
+        if (result)
+        {
+            await JS.InvokeVoidAsync("toastr.success", "User created!");
+            users = await UserService.GetUsersByCompanyAsync();
+            HideCreateUserModal();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("toastr.error", "Creation failed.");
+        }
+    }
 }
+

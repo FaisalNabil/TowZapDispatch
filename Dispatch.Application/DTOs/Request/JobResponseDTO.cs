@@ -9,7 +9,7 @@ namespace Dispatch.Application.DTOs.Request
 {
     public class JobResponseDTO
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         // Caller & Account
         public string AccountName { get; set; }
@@ -40,5 +40,6 @@ namespace Dispatch.Application.DTOs.Request
         // Meta
         public JobStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
+        public Guid CompanyId { get; set; }  // For multi-tenancy
     }
 }

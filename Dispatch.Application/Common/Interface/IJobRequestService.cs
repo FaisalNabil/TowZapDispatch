@@ -10,11 +10,14 @@ namespace Dispatch.Application.Common.Interface
 {
     public interface IJobRequestService
     {
-        Task<bool> CreateJobAsync(CreateJobRequestDTO dto);
-        Task<List<JobResponseDTO>> GetJobsForDispatcherAsync();
-        Task<JobResponseDTO?> GetJobByIdAsync(int id);
-        Task<bool> AssignDriverAsync(int jobId, string driverUserId); 
-        Task<bool> UpdateJobStatusAsync(int jobId, JobStatus status);
+        Task<List<JobResponseDTO>> GetJobsForDispatcherAsync(string dispatcherId);
+        Task<List<JobResponseDTO>> GetJobsForDriverAsync(string driverId);
+        Task<List<JobResponseDTO>> GetJobsForCompanyAsync(Guid companyId);
+        Task<JobResponseDTO?> GetJobByIdAsync(Guid id);
+        Task<Guid> CreateJobAsync(CreateJobRequestDTO dto, string dispatcherId, Guid companyId);
+        Task<bool> UpdateJobStatusAsync(Guid jobId, JobStatus status);
+        Task<bool> AssignDriverAsync(Guid jobId, string driverUserId);
+        Task<bool> DeleteJobAsync(Guid jobId);
 
     }
 }

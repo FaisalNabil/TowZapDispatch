@@ -54,11 +54,17 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IJobRequestService, JobRequestService>();
 
 builder.Services.AddControllers();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(); 
+
+builder.Logging.ClearProviders();
+builder.Logging.AddLog4Net("log4net.config");
+
 
 var app = builder.Build();
+app.UseMiddleware<ErrorHandlingMiddleware>();
 
 // Use Swagger only in development
 if (app.Environment.IsDevelopment())
@@ -67,6 +73,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<ExpiryMiddleware>();
 
 app.UseCors("AllowBlazorClient");
 

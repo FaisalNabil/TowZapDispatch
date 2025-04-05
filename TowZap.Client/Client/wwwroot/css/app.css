@@ -118,7 +118,22 @@ a, .btn-link {
 .sidebar li {
     margin-bottom: 10px;
 }
-.mud-main-content {
-    padding: 20px;
+.public-layout {
+    background: #f7f7f7;
+    min-height: 100vh;
+}
+
+.form-container {
+    max-width: 420px;
+    width: 100%;
+}
+
+.logo-img {
+    height: 80px;
+    margin-bottom: 1rem;
+}
+
+#map, .leaflet-map {
+    height: 300px;
 }
 

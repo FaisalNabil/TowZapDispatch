@@ -9,7 +9,7 @@ namespace Dispatch.Domain.Entities
 {
     public class JobRequest
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         // Caller & Account
         public string AccountName { get; set; } = string.Empty;
@@ -37,6 +37,10 @@ namespace Dispatch.Domain.Entities
 
         // Assignment
         public string AssignedDriverId { get; set; }
+        public ApplicationUser AssignedDriver { get; set; }
+
+        public string CreatedById { get; set; }
+        public ApplicationUser CreatedBy { get; set; }
         public string AssignedTowTruck { get; set; }
 
         public JobStatus Status { get; set; } = JobStatus.Pending;

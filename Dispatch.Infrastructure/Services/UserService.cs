@@ -28,42 +28,37 @@ namespace Dispatch.Infrastructure.Services
 
         public async Task<LoginResponseDTO> LoginAsync(LoginRequestDTO request)
         {
-            try
+            var user = await _db.Users
+                                 .Where(x => x.Email == request.Email)
+                                 .SingleOrDefaultAsync();
+
+            if (user == null)
+                return null;
+
+            var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+            if (result == PasswordVerificationResult.Failed)
+                return null;
+
+            var role = await _db.UserRoles
+                .Where(ur => ur.UserId == user.Id)
+                .Select(ur => ur.Role.Name)  // Assuming navigation property is set
+                .FirstOrDefaultAsync();
+
+            var token = _jwtTokenService.GenerateToken(user, new List<string> { role });
+
+            return new LoginResponseDTO
             {
-                var user = await _db.Users
-                                     .Where(x => x.Email == request.Email)
-                                     .SingleOrDefaultAsync();
-
-                if (user == null)
-                    return null;
-
-                var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
-                if (result == PasswordVerificationResult.Failed)
-                    return null;
-
-                var roles = await _db.UserRoles
-                    .Where(ur => ur.UserId == user.Id)
-                    .Join(_db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
-                    .ToListAsync();
-
-                var token = _jwtTokenService.GenerateToken(user, roles);
-
-                return new LoginResponseDTO
-                {
-                    Token = token,
-                    FullName = $"{user.FirstName} {user.LastName}",
-                    Role = roles.FirstOrDefault() ?? ""
-                };
-            }
-            catch (Exception ex)
-            {
-
-                throw;
-            }
+                Token = token,
+                FullName = $"{user.FirstName} {user.LastName}",
+                Role = role
+            };
         }
 
         public async Task<IdentityResult> RegisterAsync(ApplicationUser user, string password, string role, Guid? companyId = null)
         {
+            if (string.IsNullOrWhiteSpace(user.Id))
+                user.Id = Guid.NewGuid().ToString();
+
             // Hash the password
             user.PasswordHash = _passwordHasher.HashPassword(user, password);
 
@@ -163,8 +158,15 @@ namespace Dispatch.Infrastructure.Services
             await _db.SaveChangesAsync();
             return IdentityResult.Success;
         }
+        public async Task<List<ApplicationUser>> GetUsersByRoleAsync(string role, Guid companyId)
+        {
+            var users = await _db.UserRoles
+                .Where(ur => ur.Role.Name == role) // Assuming navigation property
+                .Select(ur => ur.User)
+                .Where(u => u.CompanyId == companyId)
+                .ToListAsync();
 
-
-
+            return users;
+        }
     }
 }

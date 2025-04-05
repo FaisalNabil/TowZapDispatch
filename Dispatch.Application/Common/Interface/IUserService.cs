@@ -18,7 +18,9 @@ namespace Dispatch.Application.Common.Interface
         Task<List<UserSummaryDTO>> GetUsersUnderCompanyAsync(Guid companyId); 
         Task<ApplicationUser?> GetUserByIdAsync(string userId);
 
-        Task<IdentityResult> PromoteUserAsync(string userId, string newRole);
+        Task<IdentityResult> PromoteUserAsync(string userId, string newRole); 
+        Task<List<ApplicationUser>> GetUsersByRoleAsync(string role, Guid companyId);
+
 
 
     }

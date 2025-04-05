@@ -1,4 +1,5 @@
-﻿using Dispatch.Domain.Entities;
+﻿using Dispatch.Domain.Constants;
+using Dispatch.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +17,14 @@ namespace Dispatch.Infrastructure.Persistence
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             // Seed roles
-            var roles = new[] { "Administrator", "Dispatcher", "Driver", "GuestUser", "CompanyAdministrator" };
+            var roles = new[]
+            {
+                UserRoles.Administrator,
+                UserRoles.CompanyAdministrator,
+                UserRoles.Dispatcher,
+                UserRoles.Driver,
+                UserRoles.GuestUser
+            };
             foreach (var roleName in roles)
             {
                 var exists = await context.Roles.AnyAsync(r => r.Name == roleName);

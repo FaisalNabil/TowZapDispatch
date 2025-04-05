@@ -1,0 +1,23 @@
+﻿@using Microsoft.JSInterop
+@inject IJSRuntime JS
+
+<div id="@MapId" style="width:100%; height:400px;"></div>
+
+@code {
+    [Parameter] public string MapId { get; set; } = $"map_{Guid.NewGuid()}";
+    [Parameter] public double Latitude { get; set; }
+    [Parameter] public double Longitude { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("initMap", MapId, Latitude, Longitude);
+        }
+    }
+
+    public async Task UpdateLocationAsync(double lat, double lng)
+    {
+        await JS.InvokeVoidAsync("updateDriverLocation", MapId, lat, lng);
+    }
+}

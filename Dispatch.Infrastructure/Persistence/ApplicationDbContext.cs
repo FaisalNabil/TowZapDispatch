@@ -38,6 +38,19 @@ namespace Dispatch.Infrastructure.Persistence
             modelBuilder.Entity<ImpoundFeeRecord>()
                 .Property(f => f.TotalFee)
                 .HasPrecision(18, 2);
+
+            modelBuilder.Entity<JobRequest>()
+                .HasOne(j => j.AssignedDriver)
+                .WithMany()
+                .HasForeignKey(j => j.AssignedDriverId)
+                .OnDelete(DeleteBehavior.Restrict); // prevent cascade delete
+
+            modelBuilder.Entity<JobRequest>()
+                .HasOne(j => j.CreatedBy)
+                .WithMany()
+                .HasForeignKey(j => j.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict); // prevent cascade delete
+
         }
     }
 

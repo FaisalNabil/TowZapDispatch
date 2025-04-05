@@ -1,269 +1,120 @@
-﻿using Dispatch.Domain.Entities;
-using Dispatch.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using iText.Kernel.Pdf;
-using iText.Forms;
-using iText.Forms.Fields;
-using System.Security.Claims;
-using Dispatch.API.Hubs;
-using Microsoft.AspNetCore.SignalR;
+﻿using Dispatch.Application.Common.Interface;
 using Dispatch.Application.DTOs.Request;
 using Dispatch.Domain.Enums;
-using System.Data;
-using System.Dynamic;
+using Dispatch.API.Hubs;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using System.Security.Claims;
 using Dispatch.Domain.Constants;
 
 namespace Dispatch.API.Controllers
 {
+
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class JobRequestsController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
-        private readonly IWebHostEnvironment _environment;
+        private readonly IJobRequestService _jobService;
         private readonly IHubContext<JobUpdateHub> _hubContext;
 
-        public JobRequestsController(ApplicationDbContext context, 
-            IWebHostEnvironment environment, 
-            IHubContext<JobUpdateHub> hubContext)
+        public JobRequestsController(IJobRequestService jobService, IHubContext<JobUpdateHub> hubContext)
         {
-            _context = context;
-            _environment = environment;
+            _jobService = jobService;
             _hubContext = hubContext;
         }
 
         [HttpGet("dispatcher")]
         [Authorize(Roles = UserRoles.Dispatcher)]
-        public IActionResult GetByDispatcher()
+        public async Task<IActionResult> GetByDispatcher()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var jobs = _context.JobRequests
-                .Where(j => j.AssignedDriverId == userId)
-                .ToList();
+            var jobs = await _jobService.GetJobsForDispatcherAsync(userId);
             return Ok(jobs);
         }
 
         [HttpGet("driver")]
         [Authorize(Roles = UserRoles.Driver)]
-        public IActionResult GetByDriver()
+        public async Task<IActionResult> GetByDriver()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var jobs = _context.JobRequests
-                .Where(j => j.AssignedDriverId == userId)
-                .ToList();
+            var jobs = await _jobService.GetJobsForDriverAsync(userId);
             return Ok(jobs);
         }
+
         [HttpGet("company")]
         [Authorize(Roles = UserRoles.CompanyAdministrator)]
-        public IActionResult GetForCompany()
+        public async Task<IActionResult> GetForCompany()
         {
-            var companyId = User.FindFirst("CompanyId")?.Value;
-            if (string.IsNullOrEmpty(companyId)) return Unauthorized("Company not found.");
-            var parsed = Guid.Parse(companyId);
-            var jobs = _context.JobRequests
-                .Where(j => j.CompanyId == parsed)
-                .ToList();
+            var companyIdStr = User.FindFirst("CompanyId")?.Value;
+            if (string.IsNullOrEmpty(companyIdStr)) return Unauthorized("Company not found.");
+            var companyId = Guid.Parse(companyIdStr);
+
+            var jobs = await _jobService.GetJobsForCompanyAsync(companyId);
             return Ok(jobs);
-        }
-
-        [HttpDelete("{jobId}")]
-        [Authorize(Roles = UserRoles.Dispatcher)]
-        public async Task<IActionResult> DeleteJob(int jobId)
-        {
-            var job = await _context.JobRequests.FindAsync(jobId);
-            if (job == null) return NotFound("Job not found.");
-
-            _context.JobRequests.Remove(job);
-            await _context.SaveChangesAsync();
-            return Ok("Job deleted successfully.");
         }
 
         [HttpGet("{id:int}")]
-        [Authorize(Roles = UserRoles.Dispatcher + "," + UserRoles.CompanyAdministrator)]
-        public async Task<IActionResult> GetById(int id)
+        [Authorize(Roles = $"{UserRoles.Dispatcher},{UserRoles.CompanyAdministrator}")]
+        public async Task<IActionResult> GetById(Guid id)
         {
-            var job = await _context.JobRequests.FindAsync(id);
+            var job = await _jobService.GetJobByIdAsync(id);
             if (job == null) return NotFound();
-
-            var dto = new JobResponseDTO
-            {
-                Id = job.Id,
-                CallerName = job.CallerName,
-                CallerPhone = job.CallerPhone,
-                Make = job.Make,
-                Model = job.Model,
-                PlateNumber = job.PlateNumber,
-                Reason = job.Reason,
-                FromLocation = job.FromLocation,
-                ToLocation = job.ToLocation,
-                AssignedDriverId = job.AssignedDriverId,
-                AssignedTowTruck = job.AssignedTowTruck,
-                Status = job.Status,
-                CreatedAt = job.CreatedAt
-            };
-
-            return Ok(dto);
+            return Ok(job);
         }
-
 
         [HttpPost]
         [Authorize(Roles = UserRoles.Dispatcher)]
         public async Task<IActionResult> Create([FromBody] CreateJobRequestDTO dto)
         {
-            try
+            if (!ModelState.IsValid)
             {
-                var dispatcherId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                var companyId = User.FindFirst("CompanyId")?.Value;
-
-                if (dispatcherId == null || string.IsNullOrWhiteSpace(companyId))
-                    return Unauthorized("Missing user or company context.");
-
-                var job = new JobRequest
-                {
-                    AccountName = dto.AccountName,
-                    CallerName = dto.CallerName,
-                    CallerPhone = dto.CallerPhone,
-
-                    VIN = dto.VIN,
-                    Year = dto.Year,
-                    Make = dto.Make,
-                    Model = dto.Model,
-                    Color = dto.Color,
-                    PlateNumber = dto.PlateNumber,
-                    StatePlate = dto.StatePlate,
-                    Keys = dto.Keys,
-                    UnitNumber = dto.UnitNumber,
-                    Odometer = dto.Odometer,
-
-                    Reason = dto.Reason,
-                    FromLocation = dto.FromLocation,
-                    ToLocation = dto.ToLocation,
-
-                    AssignedDriverId = dto.AssignedDriverId,
-                    AssignedTowTruck = dto.AssignedTowTruck,
-                    Status = JobStatus.Assigned, // Dispatcher assigns on creation
-
-                    CreatedAt = DateTime.UtcNow,
-                    CompanyId = Guid.Parse(companyId)
-                };
-
-                _context.JobRequests.Add(job);
-                await _context.SaveChangesAsync();
-
-                await _hubContext.Clients.Group(job.CompanyId.ToString()).SendAsync("JobCreated", job.Id);
-
-                return Ok(new { job.Id, Message = "Job created and driver assigned." });
+                return BadRequest(ModelState); // This will return all validation errors
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Failed to create job: {ex.Message}");
-            }
+            var dispatcherId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var companyId = User.FindFirst("CompanyId")?.Value;
+
+            if (dispatcherId == null || string.IsNullOrWhiteSpace(companyId))
+                return Unauthorized("Missing dispatcher or company.");
+
+            var jobId = await _jobService.CreateJobAsync(dto, dispatcherId, Guid.Parse(companyId));
+
+            await _hubContext.Clients.Group(companyId).SendAsync("JobCreated", jobId);
+            return Ok(new { jobId, Message = "Job created and driver assigned." });
         }
 
-
-        [HttpGet("photo/{filename}")]
-        public IActionResult ViewPhoto(string filename)
+        [HttpPut("{jobId}/status")]
+        [Authorize(Roles = $"{UserRoles.Dispatcher},{UserRoles.Driver}")]
+        public async Task<IActionResult> UpdateStatus(Guid jobId, [FromBody] JobStatus newStatus)
         {
-            var uploadsDir = Path.Combine(_environment.WebRootPath, "uploads");
-            var filePath = Path.Combine(uploadsDir, filename);
+            var updated = await _jobService.UpdateJobStatusAsync(jobId, newStatus);
+            if (!updated) return NotFound("Job not found.");
 
-            if (!System.IO.File.Exists(filePath))
-                return NotFound("Photo not found.");
+            var job = await _jobService.GetJobByIdAsync(jobId);
+            await _hubContext.Clients.Group(job.CompanyId.ToString()).SendAsync("JobStatusUpdated", jobId, newStatus.ToString());
 
-            var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-            return File(fileStream, "image/jpeg");
+            return Ok("Status updated.");
         }
 
         [HttpPost("{jobId}/assign")]
         [Authorize(Roles = UserRoles.Dispatcher)]
         public async Task<IActionResult> AssignJob(Guid jobId, [FromQuery] string driverUserId)
         {
-            var job = await _context.JobRequests.FindAsync(jobId);
-            if (job == null) return NotFound("Job not found.");
+            var result = await _jobService.AssignDriverAsync(jobId, driverUserId);
+            if (!result) return NotFound("Job not found or failed to assign.");
 
-            job.AssignedDriverId = driverUserId;
-            job.Status = JobStatus.Assigned;
-            await _context.SaveChangesAsync();
-
-            var status = new DriverStatus
-            {
-                Id = Guid.NewGuid(),
-                JobRequestId = jobId,
-                DriverUserId = driverUserId,
-                Timestamp = DateTime.UtcNow,
-                Status = "Assigned"
-            };
-
-            _context.DriverStatuses.Add(status);
-            await _context.SaveChangesAsync(); 
-            
             await _hubContext.Clients.Group(jobId.ToString()).SendAsync("ReceiveJobUpdate", jobId);
-
-            return Ok("Driver assigned successfully.");
+            return Ok("Driver assigned.");
         }
-        [HttpPut("{jobId}/status")]
-        [Authorize(Roles = $"{UserRoles.Dispatcher},{UserRoles.Driver}")]
-        public async Task<IActionResult> UpdateStatus(int jobId, [FromBody] JobStatus newStatus)
+
+        [HttpDelete("{jobId}")]
+        [Authorize(Roles = UserRoles.Dispatcher)]
+        public async Task<IActionResult> DeleteJob(Guid jobId)
         {
-            var job = await _context.JobRequests.FindAsync(jobId);
-            if (job == null) return NotFound("Job not found.");
-
-            job.Status = newStatus;
-            await _context.SaveChangesAsync();
-
-            await _hubContext.Clients.Group(job.CompanyId.ToString())
-                .SendAsync("JobStatusUpdated", jobId, newStatus.ToString());
-
-            return Ok("Status updated.");
+            var result = await _jobService.DeleteJobAsync(jobId);
+            if (!result) return NotFound("Job not found.");
+            return Ok("Job deleted.");
         }
-
-
-        //[HttpPost("{jobId}/generate-notification-template")]
-        //[Authorize(Roles = "Dispatcher")]
-        //public async Task<IActionResult> GenerateNotificationLetterWithTemplate(Guid jobId, [FromQuery] string type = "1st")
-        //{
-        //    var job = await _context.JobRequests.Include(j => j.CreatedByUser)
-        //                .FirstOrDefaultAsync(j => j.Id == jobId);
-
-        //    if (job == null) return NotFound("Job not found.");
-
-        //    var templatePath = Path.Combine(_environment.WebRootPath, "templates", "NotificationTemplate.pdf");
-        //    var lettersDir = Path.Combine(_environment.WebRootPath, "letters");
-        //    if (!Directory.Exists(lettersDir)) Directory.CreateDirectory(lettersDir);
-
-        //    var outputPath = Path.Combine(lettersDir, $"{job.Id}_{type}.pdf");
-
-        //    using (var reader = new PdfReader(templatePath))
-        //    using (var writer = new PdfWriter(outputPath))
-        //    using (var pdfDoc = new PdfDocument(reader, writer))
-        //    {
-        //        var form = PdfAcroForm.GetAcroForm(pdfDoc, true);
-        //        var fields = form.GetFormFields();
-
-        //        fields["LicensePlate"].SetValue(job.LicensePlate ?? "");
-        //        fields["TowDate"].SetValue(job.TowDate.ToString("yyyy-MM-dd"));
-        //        fields["AddressTo"].SetValue(job.AddressTo ?? "");
-
-        //        form.FlattenFields(); // Optional: makes the text uneditable
-        //        pdfDoc.Close();
-        //    }
-
-        //    var letter = new NotificationLetter
-        //    {
-        //        Id = Guid.NewGuid(),
-        //        JobRequestId = job.Id,
-        //        LetterType = type,
-        //        GeneratedOn = DateTime.UtcNow,
-        //        FilePath = Path.GetFileName(outputPath)
-        //    };
-
-        //    _context.NotificationLetters.Add(letter);
-        //    await _context.SaveChangesAsync();
-
-        //    return Ok($"Notification letter ({type}) generated with template.");
-        //}
     }
 }
