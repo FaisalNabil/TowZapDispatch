@@ -69,6 +69,7 @@ namespace Dispatch.Infrastructure.Services
                 AssignedDriverId = dto.AssignedDriverId,
                 AssignedTowTruck = dto.AssignedTowTruck,
                 Status = JobStatus.Assigned,
+                CreatedById = dispatcherId,
                 CreatedAt = DateTime.UtcNow,
                 CompanyId = companyId
             };

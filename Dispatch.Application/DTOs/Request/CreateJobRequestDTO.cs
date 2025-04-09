@@ -31,7 +31,13 @@ namespace Dispatch.Application.DTOs.Request
 
         // Location
         public string FromLocation { get; set; }
+        public double FromLatitude { get; set; }
+        public double FromLongitude { get; set; }
+
         public string ToLocation { get; set; }
+        public double ToLatitude { get; set; }
+        public double ToLongitude { get; set; }
+
 
         // Assignment
         public string AssignedDriverId { get; set; }
@@ -44,5 +50,12 @@ namespace Dispatch.Application.DTOs.Request
         public string PhoneNumber { get; set; }
     }
 
+
+    public class LocationResult
+    {
+        public string Address { get; set; } = "";
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+    }
 
 }

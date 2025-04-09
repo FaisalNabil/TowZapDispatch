@@ -21,7 +21,14 @@ namespace TowZap.Client.Client.Service
         public async Task<bool> CreateJobAsync(CreateJobRequestDTO dto)
         {
             await AddBearerTokenAsync();
-            var response = await _http.PostAsJsonAsync("api/JobRequests", dto);
+            var response = await _http.PostAsJsonAsync("api/JobRequests/create", dto);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine("Error: " + errorContent); // or log it in UI
+            }
+
             return response.IsSuccessStatusCode;
         }
 

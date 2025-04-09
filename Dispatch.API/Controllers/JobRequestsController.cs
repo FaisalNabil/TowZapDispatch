@@ -64,7 +64,7 @@ namespace Dispatch.API.Controllers
             return Ok(job);
         }
 
-        [HttpPost]
+        [HttpPost("create")]
         [Authorize(Roles = UserRoles.Dispatcher)]
         public async Task<IActionResult> Create([FromBody] CreateJobRequestDTO dto)
         {

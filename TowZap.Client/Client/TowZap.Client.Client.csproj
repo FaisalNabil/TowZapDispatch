@@ -19,7 +19,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Dispatch.Application\Dispatch.Application.csproj" />
-    <ProjectReference Include="..\Shared\TowZap.Client.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -22,6 +22,11 @@
                         <DataAnnotationsValidator />
                         <ValidationSummary />
 
+                        <!-- Account Name -->
+                        <div class="mb-3">
+                            <label class="form-label">Account Name</label>
+                            <InputText class="form-control" @bind-Value="job.AccountName" />
+                        </div>
                         <!-- Caller Info -->
                         <h6 class="fw-bold mt-3">
                             <i class="bi bi-person-lines-fill me-2 text-secondary"></i>Caller Info
@@ -46,13 +51,31 @@
                                 <label class="form-label">VIN</label>
                                 <InputText class="form-control" @bind-Value="job.VIN" />
                             </div>
-                            <div class="col-md-3 mb-3">
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Keys <i class="bi bi-key ms-1"></i></label>
+
+                                <InputRadioGroup @bind-Value=@job.Keys>
+                                    @foreach (var key in new[] { true, false })
+                                    {
+                                        <div class="form-check form-check-inline">
+                                            <InputRadio class="form-check-input" Value=@key />
+                                            <label class="form-check-label">@key</label>
+                                        </div>
+                                    }
+                                </InputRadioGroup>
+
+                            </div>
+
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label">Year</label>
                                 <InputText class="form-control" @bind-Value="job.Year" />
                             </div>
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label">Color</label>
-                                <InputText class="form-control" @bind-Value="job.Color" />
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Unit #</label>
+                                <InputText class="form-control" @bind-Value="job.UnitNumber" />
                             </div>
                         </div>
                         <div class="row">
@@ -60,16 +83,50 @@
                                 <label class="form-label">Make</label>
                                 <InputText class="form-control" @bind-Value="job.Make" />
                             </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Odometer</label>
+                                <InputText class="form-control" @bind-Value="job.Odometer" />
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Model</label>
                                 <InputText class="form-control" @bind-Value="job.Model" />
                             </div>
                         </div>
                         <div class="row">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Color</label>
+                                <InputRadioGroup @bind-Value=@job.Color>
+                                @foreach (var color in new[] { "Black", "White", "Silver", "Gold", "Other" })
+                                {
+                                    <div class="form-check form-check-inline">
+                                        <InputRadio class="form-check-input" Value=@color />
+                                        <label class="form-check-label">@color</label>
+                                    </div>
+                                    }
+                                </InputRadioGroup>
+                                @if (job.Color == "Other")
+                                {
+                                    <div class="mb-3 mt-2">
+                                        <label class="form-label">Specify Color</label>
+                                        <InputText class="form-control" @bind-Value="customColor" />
+                                    </div>
+                                }
+
+                            </div>
+
+                        </div>
+                        <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Plate Number</label>
+                                <label class="form-label">Plate #</label>
                                 <InputText class="form-control" @bind-Value="job.PlateNumber" />
                             </div>
+                        </div>
+                        <div class="row">
+
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">State Plate</label>
                                 <InputSelect class="form-select" @bind-Value="job.StatePlate">
@@ -89,7 +146,7 @@
                         </h6>
 
                         <div class="mb-3">
-                            <InputSelect class="form-select" @bind-Value="selectedReason" @onchange="OnTowReasonChanged">
+                            <InputSelect class="form-select" @bind-Value="job.Reason" @onchange="OnTowReasonChanged">
                                 <option value="">-- Select Reason --</option>
                                 @foreach (var reason in TowReasons)
                                 {
@@ -112,13 +169,21 @@
                             <i class="bi bi-geo-alt-fill me-2 text-secondary"></i>Location Info
                         </h6>
 
-                        <LocationPicker Label="From" MapId="fromMap" OnAddressChanged="@(val => job.FromLocation = val)" />
-                        <LocationPicker Label="To" MapId="toMap" OnAddressChanged="@(val => job.ToLocation = val)" />
+                        <LocationPicker Label="From Location"
+                                        MapId="fromMap"
+                                        OnLocationSelected="FromLocationCallback" />
+
+                        <LocationPicker Label="To Location"
+                                        MapId="toMap"
+                                        OnLocationSelected="ToLocationCallback" />
+
+
+
 
 
                         <!-- Assignment -->
                         <h6 class="fw-bold mt-4">
-                            <i class="bi bi-person-badge-fill me-2 text-secondary"></i>Assignment
+                            <i class="bi bi-person-badge-fill me-2 text-secondary"></i>Assign Driver
                         </h6>
                         <div class="row">
                             <div class="col-md-6 mb-3">
@@ -155,8 +220,12 @@
     private CreateJobRequestDTO job = new();
     private string[] TowReasons = new[] { "Normal", "Accident", "Abandoned", "PPI", "Other" };
     private string selectedReason;
-    private string customReason;
+    private string customReason, customColor;
     private List<DriverDropdownDTO> companyDrivers = new();
+
+    private EventCallback<LocationResult> FromLocationCallback => EventCallback.Factory.Create<LocationResult>(this, OnFromLocationSelected);
+    private EventCallback<LocationResult> ToLocationCallback => EventCallback.Factory.Create<LocationResult>(this, OnToLocationSelected);
+
 
     protected override void OnInitialized()
     {
@@ -181,13 +250,18 @@
             job.Reason = string.Empty;
         }
     }
-    
+
     private async Task CreateJobAsync()
     {
         if (selectedReason == "Other")
         {
             job.Reason = customReason;
         }
+        if (job.Color == "Other")
+        {
+            job.Color = customColor;
+        }
+
         var result = await JobService.CreateJobAsync(job);
         if (result)
         {
@@ -208,9 +282,22 @@
         "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
     };
 
-
-    private void BackToDashboard()
+    private void OnFromLocationSelected(LocationResult result)
     {
-        Navigation.NavigateTo("/dispatcher/dashboard");
+        job.FromLocation = result.Address;
+        job.FromLatitude = result.Latitude;
+        job.FromLongitude = result.Longitude;
     }
+
+    private void OnToLocationSelected(LocationResult result)
+    {
+        job.ToLocation = result.Address;
+        job.ToLatitude = result.Latitude;
+        job.ToLongitude = result.Longitude;
+    }
+
+
+
+
+    private void BackToDashboard() => Navigation.NavigateTo("/dispatcher/dashboard");
 }

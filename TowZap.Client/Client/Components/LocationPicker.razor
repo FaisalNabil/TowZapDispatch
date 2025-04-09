@@ -1,28 +1,76 @@
-﻿<div class="mb-2">
+﻿@using Dispatch.Application.DTOs.Request
+
+<div class="mb-2">
     <strong>@Label:</strong> @SelectedAddress
 </div>
-<div id="@MapId" style="height: 300px;" class="rounded shadow-sm mb-3"></div>
+<button class="btn btn-outline-primary mb-2" type="button" @onclick="OpenMapModal">
+    <i class="bi bi-geo-alt-fill me-1"></i> Select Location
+</button>
+
+<!-- Modal -->
+@if (ShowModal)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@Label - Select Location</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="form-control mb-2" placeholder="Search location..." @oninput="HandleSearchInput" />
+                    <div id="@MapId" style="height: 400px;" class="rounded shadow-sm"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
 
 @code {
     [Parameter] public string Label { get; set; } = "Location";
     [Parameter] public string MapId { get; set; }
-    [Parameter] public EventCallback<string> OnAddressChanged { get; set; }
+    [Parameter] public EventCallback<LocationResult> OnLocationSelected { get; set; }
 
     private string SelectedAddress = string.Empty;
+    private bool ShowModal = false;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private async Task OpenMapModal()
     {
-        if (firstRender)
-        {
-            await JS.InvokeVoidAsync("maps.initLocationPicker", MapId, DotNetObjectReference.Create(this));
-        }
+        ShowModal = true;
+
+        // Allow modal to fully render before initializing the map
+        await Task.Delay(200);
+
+        await JS.InvokeVoidAsync("maps.initLocationPickerWithSearch", MapId, DotNetObjectReference.Create(this));
+    }
+
+    private void CloseModal()
+    {
+        ShowModal = false;
+    }
+
+    private void HandleSearchInput(ChangeEventArgs e)
+    {
+        JS.InvokeVoidAsync("maps.searchLocation", MapId, e.Value?.ToString());
     }
 
     [JSInvokable]
-    public async Task OnAddressSelected(string address)
+    public async Task OnLocationSelectedJS(string address, double lat, double lng)
     {
         SelectedAddress = address;
-        await OnAddressChanged.InvokeAsync(address);
+
+        await OnLocationSelected.InvokeAsync(new LocationResult
+            {
+                Address = address,
+                Latitude = lat,
+                Longitude = lng
+            });
+
+        ShowModal = false;
         StateHasChanged();
     }
 }
