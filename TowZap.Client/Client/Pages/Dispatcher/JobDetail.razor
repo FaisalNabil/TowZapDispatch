@@ -23,7 +23,16 @@ else
         <div class="col-md-6">
             <div class="card p-3 mb-3">
                 <h5><i class="fas fa-map-marked-alt"></i> Driver Location</h5>
-                <MapComponent @ref="MapRef" MapId="driverMap" Latitude="@jobLat" Longitude="@jobLng" />
+                <MapComponent @ref="MapRef"
+                              MapId="driverMap"
+                              Latitude="@jobLat"
+                              Longitude="@jobLng"
+                              FromLatitude="@job.FromLatitude"
+                              FromLongitude="@job.FromLongitude"
+                              ToLatitude="@job.ToLatitude"
+                              ToLongitude="@job.ToLongitude"
+                              TowardSource="@ShouldNavigateToSource()" />
+
             </div>
 
             <div class="card p-3">
@@ -53,8 +62,8 @@ else
                 <p><strong>Caller:</strong> @job.CallerName (@job.CallerPhone)</p>
                 <p><strong>Vehicle:</strong> @job.Make @job.Model - @job.PlateNumber</p>
                 <p><strong>Reason:</strong> @job.Reason</p>
-                <p><strong>From:</strong> @job.FromLocation</p>
-                <p><strong>To:</strong> @job.ToLocation</p>
+                <p><strong>From:</strong> @fromAddress</p>
+                <p><strong>To:</strong> @toAddress</p>
                 <p><strong>Tow Truck:</strong> @job.AssignedTowTruck</p>
                 <p><strong>Created:</strong> @job.CreatedAt.ToString("g")</p>
             </div>
@@ -71,7 +80,11 @@ else
 
     private MapComponent MapRef;
     private List<MetaEnumDTO> jobStatusOptions = new();
-    private string selectedStatus;
+    private string selectedStatus; 
+    private string fromAddress = "Loading...";
+    private string toAddress = "Loading...";
+
+    private Dictionary<string, string> _geoCache = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -79,6 +92,8 @@ else
         jobStatusOptions = await JobService.GetJobStatusesAsync();
 
         selectedStatus = job.Status.ToString();
+
+        await ReverseGeocodeLocations();
 
         await JobUpdateService.StartConnectionAsync(JobId.ToString());
 
@@ -95,6 +110,14 @@ else
                 StateHasChanged();
             }
         };
+        JobUpdateService.OnLocationUpdated += async (lat, lng) =>
+        {
+            jobLat = lat;
+            jobLng = lng;
+            await MapRef.UpdateLocationAsync(lat, lng);
+            StateHasChanged();
+        };
+
     }
 
     private List<MetaEnumDTO> GetAllowedNextStatuses()
@@ -129,6 +152,47 @@ else
             await JS.InvokeVoidAsync("toast.error", "Invalid status selected.");
         }
     }
+
+    private async Task ReverseGeocodeLocations()
+    {
+        fromAddress = await GetAddressFromCoordinates(job.FromLatitude, job.FromLongitude);
+        toAddress = await GetAddressFromCoordinates(job.ToLatitude, job.ToLongitude);
+    }
+
+    private async Task<string> GetAddressFromCoordinates(double lat, double lng)
+    {
+        var key = $"{lat:F5},{lng:F5}";
+
+        if (_geoCache.TryGetValue(key, out var cached))
+            return cached;
+
+        try
+        {
+            using var httpClient = new HttpClient();
+            var json = await httpClient.GetStringAsync(
+                $"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat}&lon={lng}");
+
+            var data = JsonDocument.Parse(json);
+            if (data.RootElement.TryGetProperty("display_name", out var displayName))
+            {
+                var address = displayName.GetString();
+                _geoCache[key] = address!;
+                return address;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Reverse geocoding failed: {ex.Message}");
+        }
+
+        return key;
+    }
+    private bool ShouldNavigateToSource()
+    {
+        return job.Status is JobStatus.Pending or JobStatus.Assigned or JobStatus.EnRoute or JobStatus.Arrived;
+    }
+
+
 
     private void GoBack() => Navigation.NavigateTo("/dispatcher/jobs");
 }

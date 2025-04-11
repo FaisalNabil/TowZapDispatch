@@ -29,6 +29,15 @@ namespace Dispatch.API.Hubs
 
             await base.OnDisconnectedAsync(exception);
         }
+        public async Task JoinJobRoom(string jobId)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, jobId);
+        }
+
+        public async Task LeaveJobRoom(string jobId)
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, jobId);
+        }
         public async Task SendLocationUpdate(string jobId, double lat, double lng)
         {
             await Clients.Group(jobId).SendAsync("ReceiveLocationUpdate", lat, lng);

@@ -55,7 +55,7 @@ namespace Dispatch.API.Controllers
             return Ok(jobs);
         }
 
-        [HttpGet("{id:int}")]
+        [HttpGet("{id:guid}")]
         [Authorize(Roles = $"{UserRoles.Dispatcher},{UserRoles.CompanyAdministrator}")]
         public async Task<IActionResult> GetById(Guid id)
         {

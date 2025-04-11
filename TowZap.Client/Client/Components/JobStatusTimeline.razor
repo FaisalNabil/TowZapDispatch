@@ -6,14 +6,14 @@
     {
         @foreach (var status in Statuses)
         {
-            var stepClass = status.Value == CurrentStatus
-            ? "bg-success text-white"
-            : "bg-light";
+            var isCurrent = status.Value == CurrentStatus;
+            var stepClass = isCurrent ? "bg-success text-white" : "bg-light";
+            var iconClass = GetIconClass(status.Value);
 
             <div class="text-center flex-fill mx-1">
                 <div class="rounded-circle p-2 mb-1 @stepClass"
                      style="width: 40px; height: 40px; line-height: 40px;">
-                    @status.Order
+                    <i class="@iconClass"></i>
                 </div>
                 <small>@status.Label</small>
             </div>
@@ -24,4 +24,18 @@
 @code {
     [Parameter] public string CurrentStatus { get; set; }
     [Parameter] public List<MetaEnumDTO> Statuses { get; set; }
+
+    private string GetIconClass(string status)
+    {
+        return status switch
+        {
+            "Pending" => "fas fa-clock",
+            "Assigned" => "fas fa-user-tag",
+            "EnRoute" => "fas fa-truck-moving",
+            "Arrived" => "fas fa-map-marker-alt",
+            "Towing" => "fas fa-chain",
+            "Completed" => "fas fa-flag-checkered",
+            _ => "fas fa-question-circle"
+        };
+    }
 }

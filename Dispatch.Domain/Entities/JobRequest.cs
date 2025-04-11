@@ -32,8 +32,11 @@ namespace Dispatch.Domain.Entities
         public string Reason { get; set; } = string.Empty;
 
         // Location
-        public string FromLocation { get; set; } = string.Empty;
-        public string ToLocation { get; set; } = string.Empty;
+        public double FromLatitude { get; set; }
+        public double FromLongitude { get; set; }
+        public double ToLatitude { get; set; }
+        public double ToLongitude { get; set; }
+
 
         // Assignment
         public string AssignedDriverId { get; set; }

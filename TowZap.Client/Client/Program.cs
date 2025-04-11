@@ -47,8 +47,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IClientUserService, ClientUserService>(); 
 builder.Services.AddScoped<IClientJobRequestService, ClientJobRequestService>();
 
-
-
+builder.Services.AddScoped<JobUpdateService>();
 builder.Services.AddScoped<UserContext>();
 builder.Services.AddSingleton<SignalRService>();
 

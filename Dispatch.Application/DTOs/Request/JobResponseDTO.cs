@@ -30,8 +30,10 @@ namespace Dispatch.Application.DTOs.Request
 
         // Tow Info
         public string Reason { get; set; }
-        public string FromLocation { get; set; }
-        public string ToLocation { get; set; }
+        public double FromLatitude { get; set; }
+        public double FromLongitude { get; set; }
+        public double ToLatitude { get; set; }
+        public double ToLongitude { get; set; }
 
         // Assigned
         public string AssignedDriverId { get; set; }

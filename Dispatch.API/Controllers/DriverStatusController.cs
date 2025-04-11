@@ -1,10 +1,13 @@
 ﻿using Dispatch.API.Hubs;
+using Dispatch.Application.DTOs.Request;
 using Dispatch.Domain.Entities;
+using Dispatch.Domain.Enums;
 using Dispatch.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using System.Security.Claims;
 
 namespace Dispatch.API.Controllers
 {
@@ -23,17 +26,43 @@ namespace Dispatch.API.Controllers
             _hubContext = hubContext;
         }
 
-        //[HttpPost("update-location")]
-        //public async Task<IActionResult> UpdateStatus([FromBody] DriverStatus status)
-        //{
-        //    status.Id = Guid.NewGuid();
-        //    status.Timestamp = DateTime.UtcNow;
-        //    _context.DriverStatuses.Add(status);
-        //    await _context.SaveChangesAsync(); 
-            
-        //    await _hubContext.Clients.Group(dto.JobId).SendAsync("ReceiveJobUpdate", dto.JobId);
+        [HttpPost("update-location")]
+        public async Task<IActionResult> UpdateLocation([FromBody] DriverLocationUpdateDTO dto)
+        {
+            var driverUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (driverUserId == null)
+                return Unauthorized();
 
-        //    return Ok(status);
-        //}
+            var status = new DriverStatus
+            {
+                Id = Guid.NewGuid(),
+                DriverUserId = driverUserId,
+                JobRequestId = dto.JobRequestId,
+                Status = dto.Status,
+                Timestamp = DateTime.UtcNow
+            };
+
+            _context.DriverStatuses.Add(status);
+
+            await _context.SaveChangesAsync();
+            var job = await _context.JobRequests.FindAsync(dto.JobRequestId);
+            if (job != null)
+            {
+                if (Enum.TryParse<JobStatus>(dto.Status, out var parsedStatus))
+                {
+                    job.Status = parsedStatus;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Broadcast location to group using SignalR
+            await _hubContext.Clients.Group(dto.JobRequestId.ToString())
+                .SendAsync("ReceiveLocationUpdate", dto.Latitude, dto.Longitude);
+
+            return Ok();
+        }
+
+
     }
 }

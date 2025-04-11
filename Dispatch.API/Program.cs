@@ -42,9 +42,9 @@ builder.Services.AddAuthorization();
 // ✅ CORS Policy (Allow specific origin like Blazor client)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowBlazorClient", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("https://localhost:7049") // Or whatever your Blazor client runs on
+        policy.AllowAnyOrigin()
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -75,7 +75,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ExpiryMiddleware>();
 
-app.UseCors("AllowBlazorClient");
+app.UseCors("AllowAll");
 
 app.UseHttpsRedirection();
 
@@ -93,3 +93,5 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+app.MapGet("/", () => "TowZap Dispatch API is running!");
+

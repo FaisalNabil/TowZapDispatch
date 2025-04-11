@@ -1,0 +1,13 @@
+CREATE TABLE DriverStatuses (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Status NVARCHAR(100) NOT NULL,
+    Timestamp DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    JobRequestId UNIQUEIDENTIFIER NOT NULL,
+    DriverUserId NVARCHAR(128) NOT NULL,
+
+    CONSTRAINT FK_DriverStatuses_JobRequests FOREIGN KEY (JobRequestId)
+        REFERENCES JobRequests(Id) ON DELETE CASCADE,
+
+    CONSTRAINT FK_DriverStatuses_AspNetUsers FOREIGN KEY (DriverUserId)
+        REFERENCES AspNetUsers(Id) ON DELETE CASCADE
+);
