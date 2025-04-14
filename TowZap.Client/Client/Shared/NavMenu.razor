@@ -1,39 +1,62 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">TowZap.Client</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-    </div>
-</div>
+﻿@inject UserContext UserContext
+@inject IJSRuntime JS
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="oi oi-home" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="oi oi-plus" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="fetchdata">
-                <span class="oi oi-list-rich" aria-hidden="true"></span> Fetch data
-            </NavLink>
-        </div>
-    </nav>
-</div>
+<ul class="nav nav-pills flex-column p-3">
+    @switch (UserContext.Role)
+    {
+        case UserRoles.Administrator:
+        case UserRoles.CompanyAdministrator:
+            <li class="nav-item mb-1">
+                <NavLink class="nav-link" href="/admin/dashboard" Match="NavLinkMatch.All" @onclick="CloseSidebar">
+                    <i class="fas fa-chart-line me-2"></i> Dashboard
+                </NavLink>
+            </li>
+            <li class="nav-item mb-1">
+                <NavLink class="nav-link" href="/admin/users" @onclick="CloseSidebar">
+                    <i class="fas fa-users-cog me-2"></i> Users
+                </NavLink>
+            </li>
+            break;
+
+        case UserRoles.Dispatcher:
+            <li class="nav-item mb-1">
+                <NavLink class="nav-link" href="/dispatcher/dashboard" Match="NavLinkMatch.All" @onclick="CloseSidebar">
+                    <i class="fas fa-clipboard-list me-2"></i> Jobs
+                </NavLink>
+            </li>
+            <li class="nav-item mb-1">
+                <NavLink class="nav-link" href="/dispatcher/map" @onclick="CloseSidebar">
+                    <i class="fas fa-map-marked-alt me-2"></i> Live Map
+                </NavLink>
+            </li>
+            break;
+
+        case UserRoles.Driver:
+            <li class="nav-item mb-1">
+                <NavLink class="nav-link" href="/driver/myjob" @onclick="CloseSidebar">
+                    <i class="fas fa-truck-moving me-2"></i> My Job
+                </NavLink>
+            </li>
+            break;
+
+        case UserRoles.GuestUser:
+            <li class="nav-item mb-1">
+                <NavLink class="nav-link" href="/guest/request" @onclick="CloseSidebar">
+                    <i class="fas fa-car-side me-2"></i> New Request
+                </NavLink>
+            </li>
+            <li class="nav-item mb-1">
+                <NavLink class="nav-link" href="/guest/status" @onclick="CloseSidebar">
+                    <i class="fas fa-route me-2"></i> Track Driver
+                </NavLink>
+            </li>
+            break;
+    }
+</ul>
 
 @code {
-    private bool collapseNavMenu = true;
-
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-
-    private void ToggleNavMenu()
+    private async Task CloseSidebar()
     {
-        collapseNavMenu = !collapseNavMenu;
+        await JS.InvokeVoidAsync("closeOffcanvasSidebar");
     }
 }

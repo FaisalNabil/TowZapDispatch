@@ -38,15 +38,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddHttpContextAccessor();
+
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
 
 // ✅ CORS Policy (Allow specific origin like Blazor client)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowTowZapClient", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials(); // Optional: if you're using cookies or auth headers
     });
 });
 
@@ -55,6 +59,7 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJobRequestService, JobRequestService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 
 builder.Services.AddControllers();
 builder.Services.AddSignalR(); 
@@ -75,7 +80,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ExpiryMiddleware>();
 
-app.UseCors("AllowAll");
+app.UseCors("AllowTowZapClient");
 
 app.UseHttpsRedirection();
 

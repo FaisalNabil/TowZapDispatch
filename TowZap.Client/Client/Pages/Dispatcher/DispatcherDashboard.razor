@@ -4,7 +4,7 @@
 @inject IJSRuntime JS
 @attribute [Authorize(Roles = UserRoles.Dispatcher)]
 
-<div class="container mt-5">
+<div class="container-fluid mt-4 px-3">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="fw-bold"><i class="bi bi-truck"></i> Dispatched Jobs</h2>
         <button class="btn btn-success" @onclick="CreateNewJob">
@@ -26,16 +26,17 @@
     }
     else
     {
-        <div class="card shadow-sm">
+        <!-- Desktop Table -->
+        <div class="card shadow-sm d-none d-md-block">
             <div class="card-body table-responsive">
                 <table class="table table-hover align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>Job ID</th>
+                            <th class="text-nowrap">Job ID</th>
                             <th>Caller</th>
-                            <th>Vehicle</th>
+                            <th class="d-none d-md-table-cell">Vehicle</th>
                             <th>Status</th>
-                            <th>Created At</th>
+                            <th class="d-none d-md-table-cell">Created At</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -43,13 +44,11 @@
                         @foreach (var job in jobs)
                         {
                             <tr>
-                                <td><code>@job.Id.ToString().Substring(0, 8)</code></td>
+                                <td class="text-nowrap"><code>@job.Id.ToString().Substring(0, 8)</code></td>
                                 <td>@job.CallerName</td>
-                                <td>@job.Make @job.Model (@job.PlateNumber)</td>
-                                <td>
-                                    <span class="badge bg-info">@job.Status</span>
-                                </td>
-                                <td>@job.CreatedAt.ToString("g")</td>
+                                <td class="d-none d-md-table-cell">@job.Make @job.Model (@job.PlateNumber)</td>
+                                <td><span class="badge bg-info">@job.Status</span></td>
+                                <td class="d-none d-md-table-cell">@job.CreatedAt.ToString("g")</td>
                                 <td>
                                     <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewDetails(job.Id)">
                                         <i class="bi bi-eye"></i> View
@@ -60,6 +59,28 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="d-block d-md-none">
+            @foreach (var job in jobs)
+            {
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title mb-2">
+                            <i class="fas fa-car me-2"></i>@job.Make @job.Model
+                        </h5>
+                        <p class="mb-1"><strong>Caller:</strong> @job.CallerName</p>
+                        <p class="mb-1"><strong>Plate:</strong> @job.PlateNumber</p>
+                        <p class="mb-1"><strong>Status:</strong> <span class="badge bg-info">@job.Status</span></p>
+                        <p class="mb-2"><strong>Created:</strong> @job.CreatedAt.ToString("g")</p>
+
+                        <button class="btn btn-sm btn-outline-primary w-100" @onclick="() => ViewDetails(job.Id)">
+                            <i class="bi bi-eye"></i> View Details
+                        </button>
+                    </div>
+                </div>
+            }
         </div>
     }
 </div>

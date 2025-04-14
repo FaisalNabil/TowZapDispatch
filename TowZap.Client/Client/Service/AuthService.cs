@@ -7,6 +7,7 @@ using Dispatch.Application.DTOs.Auth;
 using Microsoft.AspNetCore.Components.Authorization;
 using Blazored.LocalStorage;
 using Dispatch.Application.DTOs.Registration;
+using Dispatch.Application.DTOs.User;
 
 namespace TowZap.Client.Client.Service
 {
@@ -46,6 +47,26 @@ namespace TowZap.Client.Client.Service
         public async Task<bool> RegisterGuestAsync(GuestRegistrationDTO dto)
         {
             var response = await _http.PostAsJsonAsync("api/auth/register-guest", dto);
+            return response.IsSuccessStatusCode;
+        }
+        public async Task<ProfileDTO> GetProfileAsync()
+        {
+            var response = await _http.GetAsync("api/auth/profile");
+            if (!response.IsSuccessStatusCode)
+                throw new Exception("Failed to fetch profile");
+
+            return await response.Content.ReadFromJsonAsync<ProfileDTO>();
+        }
+
+        public async Task<bool> UpdateProfileAsync(ProfileUpdateDTO model)
+        {
+            var response = await _http.PutAsJsonAsync("api/auth/profile", model);
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> ChangePasswordAsync(ChangePasswordDTO model)
+        {
+            var response = await _http.PutAsJsonAsync("api/auth/change-password", model);
             return response.IsSuccessStatusCode;
         }
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,6 +25,8 @@ namespace Dispatch.Domain.Entities
         public int AccessFailedCount { get; set; }
         public required string UserName { get; set; }
         public Guid CompanyId { get; set; }
+
+        [NotMapped] 
         public string? CompanyName { get; set; }
         public string? TdlrLicense { get; set; }
         public Guid SubscriptionPackageId { get; set; }

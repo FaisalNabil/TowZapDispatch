@@ -18,8 +18,30 @@
                     <button type="button" class="btn-close" @onclick="CloseModal"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="text" class="form-control mb-2" placeholder="Search location..." @oninput="HandleSearchInput" />
-                    <div id="@MapId" style="height: 400px;" class="rounded shadow-sm"></div>
+                    <div class="position-relative">
+                        <input type="text"
+                               class="form-control mb-2"
+                               placeholder="Search location..."
+                               @bind="searchQuery"
+                               @bind:event="oninput" />
+
+                        @if (searchSuggestions.Any())
+                        {
+                            <ul class="list-group position-absolute w-100 shadow"
+                                style="z-index: 9999; background-color: white; max-height: 200px; overflow-y: auto;">
+
+                                @foreach (var suggestion in searchSuggestions)
+                                {
+                                    <li class="list-group-item list-group-item-action"
+                                        @onclick="() => SelectSuggestion(suggestion)">
+                                        @suggestion.DisplayName
+                                    </li>
+                                }
+                            </ul>
+                        }
+
+                    </div>
+                    <div id="@MapId" style="height: 400px; z-index: 0; position: relative;" class="rounded shadow-sm"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
@@ -33,6 +55,29 @@
 @code {
     [Parameter] public string Label { get; set; } = "Location";
     [Parameter] public string MapId { get; set; }
+    private double? SavedLat { get; set; }
+    private double? SavedLng { get; set; }
+    private string searchQueryBacking;
+    private string searchQuery
+    {
+        get => searchQueryBacking;
+        set
+        {
+            searchQueryBacking = value;
+            _ = OnSearchQueryChanged(value);
+        }
+    }
+
+    private List<LocationSuggestion> searchSuggestions = new();
+
+    private class LocationSuggestion
+    {
+        public string DisplayName { get; set; }
+        public double Lat { get; set; }
+        public double Lon { get; set; }
+    }
+
+
     [Parameter] public EventCallback<LocationResult> OnLocationSelected { get; set; }
 
     private string SelectedAddress = string.Empty;
@@ -41,27 +86,37 @@
     private async Task OpenMapModal()
     {
         ShowModal = true;
+        searchQuery = string.Empty;
+        searchSuggestions.Clear();
 
-        // Allow modal to fully render before initializing the map
-        await Task.Delay(200);
+        StateHasChanged();
 
-        await JS.InvokeVoidAsync("maps.initLocationPickerWithSearch", MapId, DotNetObjectReference.Create(this));
+        await Task.Delay(200); // Let modal render
+
+        var dotNetRef = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("maps.initLocationPickerWithSearch", MapId, dotNetRef);
+
+        // Give Leaflet a moment to fully render and bind
+        await Task.Delay(300);
+
+        if (SavedLat.HasValue && SavedLng.HasValue)
+        {
+            await JS.InvokeVoidAsync("maps.setSearchResult", MapId, SavedLat.Value, SavedLng.Value, false);
+        }
     }
+
 
     private void CloseModal()
     {
         ShowModal = false;
     }
 
-    private void HandleSearchInput(ChangeEventArgs e)
-    {
-        JS.InvokeVoidAsync("maps.searchLocation", MapId, e.Value?.ToString());
-    }
-
     [JSInvokable]
     public async Task OnLocationSelectedJS(string address, double lat, double lng)
     {
         SelectedAddress = address;
+        SavedLat = lat;
+        SavedLng = lng;
 
         await OnLocationSelected.InvokeAsync(new LocationResult
             {
@@ -73,4 +128,27 @@
         ShowModal = false;
         StateHasChanged();
     }
+    private async Task OnSearchQueryChanged(string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value) && value.Length >= 3)
+        {
+            var results = await JS.InvokeAsync<List<LocationSuggestion>>("maps.searchSuggestions", value);
+            searchSuggestions = results ?? new();
+            StateHasChanged();
+        }
+        else
+        {
+            searchSuggestions.Clear();
+        }
+    }
+
+
+    private async Task SelectSuggestion(LocationSuggestion suggestion)
+    {
+        searchSuggestions.Clear();
+        searchQuery = suggestion.DisplayName;
+
+        await JS.InvokeVoidAsync("maps.setSearchResult", MapId, suggestion.Lat, suggestion.Lon);
+    }
+
 }

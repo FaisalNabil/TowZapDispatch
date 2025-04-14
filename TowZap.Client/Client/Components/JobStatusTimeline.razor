@@ -1,41 +1,66 @@
-﻿@using TowZap.Client.Client.Models
+﻿@using TowZap.Client.Client.DTOs
+@using Dispatch.Domain.Enums
+@using System.ComponentModel
 @using Microsoft.AspNetCore.Components
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    @if (Statuses != null && Statuses.Any())
+<div class="timeline-container">
+    @if (StatusHistory != null && StatusHistory.Any())
     {
-        @foreach (var status in Statuses)
+        foreach (var item in StatusHistory)
         {
-            var isCurrent = status.Value == CurrentStatus;
-            var stepClass = isCurrent ? "bg-success text-white" : "bg-light";
-            var iconClass = GetIconClass(status.Value);
-
-            <div class="text-center flex-fill mx-1">
-                <div class="rounded-circle p-2 mb-1 @stepClass"
-                     style="width: 40px; height: 40px; line-height: 40px;">
-                    <i class="@iconClass"></i>
+            <div class="timeline-step">
+                <div class="timeline-icon @GetIconColor(item.Status)">
+                    <i class="@GetIconClass(item.Status)"></i>
                 </div>
-                <small>@status.Label</small>
+                <div class="timeline-content">
+                    <div class="fw-bold">@GetStatusLabel(item.Status)</div>
+                    <div class="text-muted small">
+                        <i class="fas fa-user me-1"></i>@item.DriverName
+                        <br />
+                        <i class="fas fa-clock me-1"></i>@item.Timestamp.ToString("g")
+                    </div>
+                    @if (!string.IsNullOrEmpty(item.Note))
+                    {
+                        <div class="alert alert-warning p-2 mt-2 small">
+                            <i class="fas fa-info-circle me-1"></i>@item.Note
+                        </div>
+                    }
+                </div>
             </div>
         }
     }
 </div>
 
 @code {
-    [Parameter] public string CurrentStatus { get; set; }
-    [Parameter] public List<MetaEnumDTO> Statuses { get; set; }
+    [Parameter] public List<DriverStatusHistoryItemDTO> StatusHistory { get; set; }
 
-    private string GetIconClass(string status)
+    private string GetIconClass(JobStatus status) => status switch
     {
-        return status switch
-        {
-            "Pending" => "fas fa-clock",
-            "Assigned" => "fas fa-user-tag",
-            "EnRoute" => "fas fa-truck-moving",
-            "Arrived" => "fas fa-map-marker-alt",
-            "Towing" => "fas fa-chain",
-            "Completed" => "fas fa-flag-checkered",
-            _ => "fas fa-question-circle"
-        };
+        JobStatus.Pending => "fas fa-clock",
+        JobStatus.Assigned => "fas fa-user-tag",
+        JobStatus.EnRoute => "fas fa-truck-moving",
+        JobStatus.Arrived => "fas fa-map-marker-alt",
+        JobStatus.Towing => "fas fa-car-crash",
+        JobStatus.Completed => "fas fa-flag-checkered",
+        JobStatus.Cancelled => "fas fa-times-circle",
+        JobStatus.Declined => "fas fa-ban",
+        _ => "fas fa-question-circle"
+    };
+
+    private string GetIconColor(JobStatus status) => status switch
+    {
+        JobStatus.Completed => "bg-success",
+        JobStatus.Declined => "bg-danger",
+        JobStatus.Cancelled => "bg-danger",
+        JobStatus.Assigned => "bg-primary",
+        _ => "bg-secondary"
+    };
+
+    private string GetStatusLabel(JobStatus status)
+    {
+        var field = status.GetType().GetField(status.ToString());
+        var attr = field?.GetCustomAttributes(typeof(DescriptionAttribute), false)
+                         .FirstOrDefault() as DescriptionAttribute;
+        return attr?.Description ?? status.ToString();
     }
 }

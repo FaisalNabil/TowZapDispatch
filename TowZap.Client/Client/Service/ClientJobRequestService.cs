@@ -58,6 +58,13 @@ namespace TowZap.Client.Client.Service
             await AddBearerTokenAsync();
             return await _http.GetFromJsonAsync<JobResponseDTO>($"api/JobRequests/{id}");
         }
+        public async Task<List<DriverStatusHistoryItemDTO>> GetJobStatusHistoryAsync(Guid jobId)
+        {
+            await AddBearerTokenAsync(); 
+            var response = await _http.GetFromJsonAsync<List<DriverStatusHistoryItemDTO>>($"api/JobStatus/{jobId}/status-history");
+            return response ?? new List<DriverStatusHistoryItemDTO>();
+        }
+
 
         public async Task<bool> AssignDriverAsync(Guid jobId, string driverUserId)
         {
@@ -69,7 +76,7 @@ namespace TowZap.Client.Client.Service
         public async Task<bool> UpdateJobStatusAsync(Guid jobId, JobStatus newStatus)
         {
             await AddBearerTokenAsync();
-            var response = await _http.PutAsJsonAsync($"api/JobRequests/{jobId}/status", new { status = newStatus });
+            var response = await _http.PutAsJsonAsync($"api/JobRequests/{jobId}/status", newStatus);
             return response.IsSuccessStatusCode;
         }
         public async Task<List<MetaEnumDTO>> GetJobStatusesAsync()
@@ -78,6 +85,10 @@ namespace TowZap.Client.Client.Service
             var result = await _http.GetFromJsonAsync<List<MetaEnumDTO>>("api/meta/job-statuses");
             return result ?? new List<MetaEnumDTO>();
         }
-
+        public async Task<JobResponseDTO?> GetCurrentJobForDriverAsync()
+        {
+            await AddBearerTokenAsync();
+            return await _http.GetFromJsonAsync<JobResponseDTO>("api/JobRequests/driver/current");
+        }
     }
 }

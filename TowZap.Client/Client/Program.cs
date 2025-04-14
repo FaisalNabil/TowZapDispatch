@@ -14,7 +14,11 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 
 using var http = new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) };
-var configJson = await http.GetStringAsync("appsettings.json");
+
+string env = builder.HostEnvironment.Environment; // "Development", "Production", etc.
+string configPath = env == "Production" ? "appsettings.Production.json" : "appsettings.json";
+
+var configJson = await http.GetStringAsync(configPath);
 var config = JsonSerializer.Deserialize<Dictionary<string, ApiSettings>>(configJson);
 var apiSettings = config["ApiSettings"];
 

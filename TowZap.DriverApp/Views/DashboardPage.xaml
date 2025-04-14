@@ -1,8 +1,67 @@
-<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:TowZap.DriverApp.ViewModels"
              x:Class="TowZap.DriverApp.Views.DashboardPage"
-             Title="Dashboard">
+             Title="Driver Dashboard">
 
-    <Label Text="Welcome Driver!" VerticalOptions="Center" HorizontalOptions="Center" />
+    <Grid>
+
+        <!-- Main Content Scroll -->
+        <ScrollView>
+            <VerticalStackLayout Padding="20" Spacing="20">
+                <Label Text="Welcome, Driver!" FontSize="22" HorizontalOptions="Center" />
+
+                <!-- ✅ Active Job -->
+                <Frame IsVisible="{Binding HasActiveJob}" BorderColor="Gray" Padding="10">
+                    <VerticalStackLayout>
+                        <HorizontalStackLayout>
+                            <Image Source="truck.png" HeightRequest="20" WidthRequest="20" />
+                            <Label Text="Active Job" FontSize="18" FontAttributes="Bold" Margin="5,0,0,0" />
+                        </HorizontalStackLayout>
+
+                        <Label Text="Pickup:" FontAttributes="Bold" />
+                        <Label Text="{Binding FromAddress}" FontSize="14" />
+
+                        <Label Text="Dropoff:" FontAttributes="Bold" />
+                        <Label Text="{Binding ToAddress}" FontSize="14" />
+
+                        <Label Text="Status: " FontAttributes="Bold" />
+                        <Label Text="{Binding CurrentJob.Status}" />
+
+                        <Button Text="View Job Details"
+                                Command="{Binding ViewJobCommand}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- ❌ No Job -->
+                <Label IsVisible="{Binding NoActiveJob}"
+                       Text="You don't have any active jobs right now."
+                       FontSize="16"
+                       TextColor="Gray"
+                       HorizontalOptions="Center" />
+
+                <!-- 📋 Controls -->
+                <Button Text="Profile / Logout" Command="{Binding LogoutCommand}" />
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- 🚨 Popup -->
+        <ContentView IsVisible="{Binding IsJobPopupVisible}" BackgroundColor="#80000000" Padding="20">
+            <Frame BackgroundColor="White" CornerRadius="10" Padding="20" HorizontalOptions="Center" VerticalOptions="Center">
+                <VerticalStackLayout Spacing="10">
+                    <HorizontalStackLayout HorizontalOptions="Center">
+                        <Image Source="alert.png" HeightRequest="24" WidthRequest="24" />
+                        <Label Text="New Job Assigned" FontSize="18" FontAttributes="Bold" Margin="5,0,0,0" />
+                    </HorizontalStackLayout>
+
+                    <Label Text="{Binding FromAddress}" FontSize="14" />
+                    <Label Text="{Binding ToAddress}" FontSize="14" />
+
+                    <Button Text="Accept" BackgroundColor="Green" TextColor="White" Command="{Binding AcceptJobCommand}" />
+                    <Button Text="Decline" BackgroundColor="Red" TextColor="White" Command="{Binding DeclineJobCommand}" />
+                </VerticalStackLayout>
+            </Frame>
+        </ContentView>
+
+    </Grid>
 </ContentPage>

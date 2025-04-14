@@ -41,13 +41,19 @@ namespace Dispatch.Infrastructure.Services
                 .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
                 .FirstOrDefaultAsync();
 
+            var companyName = await _context.Companies
+                .Where(c => c.Id == user.CompanyId)
+                .Select(c => c.Name)
+                .FirstOrDefaultAsync();
+
             var token = GenerateJwtToken(user, roleName);
 
             return new LoginResponseDTO
             {
                 Token = token,
                 FullName = $"{user.FirstName} {user.LastName}",
-                Role = roleName
+                Role = roleName,
+                CompanyName = companyName
             };
         }
 

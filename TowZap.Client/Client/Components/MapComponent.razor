@@ -23,6 +23,8 @@
         {
             mapInitialized = true;
             await JS.InvokeVoidAsync("initMap", MapId, Latitude, Longitude, FromLatitude, FromLongitude, ToLatitude, ToLongitude, TowardSource);
+
+            await JS.InvokeVoidAsync("updateDriverLocation", MapId, Latitude, Longitude);
         }
     }
 

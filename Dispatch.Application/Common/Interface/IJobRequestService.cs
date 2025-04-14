@@ -12,6 +12,7 @@ namespace Dispatch.Application.Common.Interface
     {
         Task<List<JobResponseDTO>> GetJobsForDispatcherAsync(string dispatcherId);
         Task<List<JobResponseDTO>> GetJobsForDriverAsync(string driverId);
+        Task<JobResponseDTO?> GetCurrentActiveJobForDriverAsync(string driverId);
         Task<List<JobResponseDTO>> GetJobsForCompanyAsync(Guid companyId);
         Task<JobResponseDTO?> GetJobByIdAsync(Guid id);
         Task<Guid> CreateJobAsync(CreateJobRequestDTO dto, string dispatcherId, Guid companyId);

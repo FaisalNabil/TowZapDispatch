@@ -19,7 +19,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TowZap.Client.Server", "Tow
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TowZap.Client.Shared", "TowZap.Client\Shared\TowZap.Client.Shared.csproj", "{B5A9E54B-7275-4657-BD0D-F7BBF7F382EA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TowZap.DriverApp", "TowZap.DriverApp\TowZap.DriverApp.csproj", "{5817D5FC-FD1B-4F20-A093-3D21FCD90DE6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TowZap.DriverApp", "TowZap.DriverApp\TowZap.DriverApp.csproj", "{5817D5FC-FD1B-4F20-A093-3D21FCD90DE6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

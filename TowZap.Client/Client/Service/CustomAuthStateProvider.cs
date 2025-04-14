@@ -36,7 +36,10 @@ namespace TowZap.Client.Client.Service
                     _userContext.Role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
                     _userContext.FullName = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value;
                     _userContext.CompanyId = Guid.TryParse(jwt.Claims.FirstOrDefault(c => c.Type == "CompanyId")?.Value, out var cid)
-                        ? cid : Guid.Empty;
+                        ? cid : Guid.Empty; 
+                    _userContext.CompanyName = jwt.Claims
+                        .FirstOrDefault(c => c.Type == "CompanyName")?.Value;
+
                 }
                 else
                 {

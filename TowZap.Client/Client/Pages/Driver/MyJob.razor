@@ -1,0 +1,140 @@
+﻿@page "/driver/myjob"
+@inject IClientJobRequestService JobService
+@inject JobUpdateService JobUpdateService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<h3><i class="fas fa-truck-moving me-2"></i> My Current Job</h3>
+
+@if (job == null)
+{
+    <div class="alert alert-warning mt-3">No job assigned yet.</div>
+}
+else
+{
+    <div class="card p-3 mb-4 shadow-sm">
+        <h5><i class="fas fa-info-circle me-2"></i> Job Info</h5>
+        <p><strong>Caller:</strong> @job.CallerName (@job.CallerPhone)</p>
+        <p><strong>Vehicle:</strong> @job.Make @job.Model - @job.PlateNumber</p>
+        <p><strong>Reason:</strong> @job.Reason</p>
+        <p><strong>From:</strong> @fromAddress</p>
+        <p><strong>To:</strong> @toAddress</p>
+        <p><strong>Status:</strong> <span class="badge bg-secondary">@job.Status</span></p>
+        <p><strong>Assigned Tow Truck:</strong> @job.AssignedTowTruck</p>
+        <p><strong>Created:</strong> @job.CreatedAt.ToString("g")</p>
+
+        <MapComponent @ref="MapRef"
+                      MapId="driverMap"
+                      Latitude="@jobLat"
+                      Longitude="@jobLng"
+                      FromLatitude="@job.FromLatitude"
+                      FromLongitude="@job.FromLongitude"
+                      ToLatitude="@job.ToLatitude"
+                      ToLongitude="@job.ToLongitude"
+                      TowardSource="@ShouldNavigateToSource()" />
+
+        <h5 class="mt-4"><i class="fas fa-route me-2"></i> Job Status Timeline</h5>
+        <JobStatusTimeline StatusHistory="@jobStatusHistory" />
+
+
+        <div class="mt-3">
+            <label>Update Status</label>
+            <InputSelect class="form-select" @bind-Value="selectedStatus">
+                @foreach (var status in GetAllowedNextStatuses())
+                {
+                    <option value="@status.Value">@status.Label</option>
+                }
+            </InputSelect>
+            <button class="btn btn-primary mt-2" @onclick="UpdateStatus">
+                <i class="fas fa-check-circle me-1"></i> Update Status
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    private JobResponseDTO? job;
+    private string fromAddress = "";
+    private string toAddress = "";
+    private string selectedStatus = "";
+    private List<MetaEnumDTO> jobStatusOptions = new();
+
+    private double jobLat = 23.8103;
+    private double jobLng = 90.4125;
+    private MapComponent MapRef;
+    private List<DriverStatusHistoryItemDTO> jobStatusHistory = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        job = await JobService.GetCurrentJobForDriverAsync();
+        jobStatusOptions = await JobService.GetJobStatusesAsync();
+
+        if (job != null)
+        {
+            selectedStatus = job.Status.ToString();
+            fromAddress = await GetAddress(job.FromLatitude, job.FromLongitude);
+            toAddress = await GetAddress(job.ToLatitude, job.ToLongitude);
+
+            jobLat = job.FromLatitude;
+            jobLng = job.FromLongitude;
+
+            jobStatusHistory = await JobService.GetJobStatusHistoryAsync(job.Id);
+            
+            await JobUpdateService.StartConnectionAsync(job.Id.ToString());
+
+            JobUpdateService.OnLocationUpdated += async (lat, lng) =>
+            {
+                jobLat = lat;
+                jobLng = lng;
+                await MapRef.UpdateLocationAsync(lat, lng);
+                StateHasChanged();
+            };
+        }
+    }
+
+    private async Task<string> GetAddress(double lat, double lng)
+    {
+        try
+        {
+            var response = await new HttpClient().GetStringAsync(
+                $"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat}&lon={lng}");
+            using var json = JsonDocument.Parse(response);
+            return json.RootElement.GetProperty("display_name").GetString() ?? "Unknown location";
+        }
+        catch
+        {
+            return "Unknown location";
+        }
+    }
+
+    private List<MetaEnumDTO> GetAllowedNextStatuses()
+    {
+        var current = job?.Status.ToString();
+        var index = jobStatusOptions.FindIndex(s => s.Value == current);
+        return (index == -1 || index == jobStatusOptions.Count - 1)
+            ? new List<MetaEnumDTO>()
+            : jobStatusOptions.Skip(index + 1).ToList();
+    }
+
+    private async Task UpdateStatus()
+    {
+        if (job == null || !Enum.TryParse<JobStatus>(selectedStatus, out var status)) return;
+
+        var result = await JobService.UpdateJobStatusAsync(job.Id, status);
+        if (result)
+        {
+            job.Status = status;
+            jobStatusHistory = await JobService.GetJobStatusHistoryAsync(job.Id); // 👈 refresh timeline
+            await JS.InvokeVoidAsync("toast.success", "Status updated!");
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("toast.error", "Failed to update.");
+        }
+    }
+
+    private bool ShouldNavigateToSource()
+    {
+        return job?.Status is JobStatus.Pending or JobStatus.Assigned or JobStatus.EnRoute or JobStatus.Arrived;
+    }
+}

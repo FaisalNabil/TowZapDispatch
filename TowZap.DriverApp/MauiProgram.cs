@@ -3,6 +3,7 @@ using TowZap.DriverApp.Services;
 using TowZap.DriverApp.Config;
 using TowZap.DriverApp.Views;
 using TowZap.DriverApp.ViewModels;
+
 #if DEBUG
 using System.Net.Http;
 using System.Net.Security;
@@ -17,6 +18,12 @@ namespace TowZap.DriverApp
         public static MauiApp CreateMauiApp()
         {
             var builder = MauiApp.CreateBuilder();
+
+            // Load config file
+            Task.Run(async () => await ConfigurationService.InitializeAsync()).Wait();
+
+            var baseUrl = ConfigurationService.Get("ApiBaseUrl");
+
             builder
                 .UseMauiApp<App>()
                 .ConfigureFonts(fonts =>
@@ -25,27 +32,40 @@ namespace TowZap.DriverApp
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
                 });
 
-            // Register HttpClient with BaseAddress from AppSettings
-            builder.Services.AddHttpClient<AuthService>(client =>
+            builder.Services.AddSingleton<HttpClient>(sp =>
             {
-                client.BaseAddress = new Uri(AppSettings.ApiBaseUrl);
-            })
-            #if DEBUG
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-             {
-                 ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true // Disable SSL validation
-             });
-            #else
-            ;
-            #endif
+#if DEBUG
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+                };
+                return new HttpClient(handler)
+                {
+                    BaseAddress = new Uri(ConfigurationService.Get("ApiBaseUrl")),
+                    Timeout = TimeSpan.FromSeconds(30)
+                };
+#else
+    return new HttpClient
+    {
+        BaseAddress = new Uri(ConfigurationService.Get("ApiBaseUrl")),
+        Timeout = TimeSpan.FromSeconds(30)
+    };
+#endif
+            });
+
+            builder.Services.AddSingleton<AuthService>();
+            builder.Services.AddSingleton<JobService>();
+
 
             builder.Services.AddTransient<LoginViewModel>();
             builder.Services.AddTransient<LoginPage>();
+            builder.Services.AddSingleton<DashboardViewModel>();
+            builder.Services.AddSingleton<DashboardPage>();
+            builder.Services.AddSingleton<SignalRClientService>();
 
 #if DEBUG
             builder.Logging.AddDebug();
 #endif
-
             return builder.Build();
         }
     }

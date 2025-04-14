@@ -118,6 +118,7 @@ a, .btn-link {
 .sidebar li {
     margin-bottom: 10px;
 }
+
 .public-layout {
     background: #f7f7f7;
     min-height: 100vh;
@@ -135,5 +136,34 @@ a, .btn-link {
 
 #map, .leaflet-map {
     height: 300px;
+}
+
+.timeline-container {
+    position: relative;
+    margin-left: 2rem;
+    border-left: 2px dashed #ccc;
+    padding-left: 1.5rem;
+}
+
+.timeline-step {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.timeline-icon {
+    position: absolute;
+    left: -26px;
+    top: 2px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timeline-content {
+    padding-left: 0.5rem;
 }
 

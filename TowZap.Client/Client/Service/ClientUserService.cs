@@ -1,4 +1,5 @@
 ﻿using Blazored.LocalStorage;
+using Dispatch.Application.DTOs.Admin;
 using Dispatch.Application.DTOs.Registration;
 using Dispatch.Application.DTOs.User;
 using System.Net.Http.Json;
@@ -38,7 +39,11 @@ namespace TowZap.Client.Client.Service
             var result = await _http.GetFromJsonAsync<List<DriverDropdownDTO>>("api/users/company-drivers");
             return result ?? new List<DriverDropdownDTO>();
         }
-
+        public async Task<AdminDashboardSummaryDTO?> GetAdminDashboardSummaryAsync()
+        {
+            await AddBearerTokenAsync();
+            return await _http.GetFromJsonAsync<AdminDashboardSummaryDTO>("api/admin/summary");
+        }
 
     }
 

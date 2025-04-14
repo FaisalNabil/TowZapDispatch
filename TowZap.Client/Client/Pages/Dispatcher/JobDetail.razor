@@ -38,7 +38,8 @@ else
             <div class="card p-3">
                 <h5><i class="fas fa-route"></i> Job Status</h5>
 
-                <JobStatusTimeline CurrentStatus="@job.Status.ToString()" Statuses="@jobStatusOptions" />
+                <JobStatusTimeline StatusHistory="@jobStatusHistory" />
+
 
                 <div class="mt-3">
                     <label>Update Job Status</label>
@@ -80,6 +81,7 @@ else
 
     private MapComponent MapRef;
     private List<MetaEnumDTO> jobStatusOptions = new();
+    private List<DriverStatusHistoryItemDTO> jobStatusHistory = new();
     private string selectedStatus; 
     private string fromAddress = "Loading...";
     private string toAddress = "Loading...";
@@ -92,6 +94,8 @@ else
         jobStatusOptions = await JobService.GetJobStatusesAsync();
 
         selectedStatus = job.Status.ToString();
+
+        jobStatusHistory = await JobService.GetJobStatusHistoryAsync(JobId);
 
         await ReverseGeocodeLocations();
 
@@ -139,19 +143,26 @@ else
             var result = await JobService.UpdateJobStatusAsync(JobId, parsedStatus);
             if (result)
             {
-                await JS.InvokeVoidAsync("toast.success", "Status updated.");
                 job.Status = parsedStatus;
+
+                // ✅ Reload the timeline history
+                jobStatusHistory = await JobService.GetJobStatusHistoryAsync(JobId);
+
+                await JS.InvokeVoidAsync("toast.success", "Status updated.");
             }
             else
             {
                 await JS.InvokeVoidAsync("toast.error", "Failed to update status.");
             }
+
+            StateHasChanged(); // ensure UI refresh
         }
         else
         {
             await JS.InvokeVoidAsync("toast.error", "Invalid status selected.");
         }
     }
+
 
     private async Task ReverseGeocodeLocations()
     {
@@ -194,5 +205,5 @@ else
 
 
 
-    private void GoBack() => Navigation.NavigateTo("/dispatcher/jobs");
+    private void GoBack() => Navigation.NavigateTo("/dispatcher/dashboard");
 }

@@ -20,8 +20,9 @@ namespace Dispatch.Application.Common.Interface
 
         Task<IdentityResult> PromoteUserAsync(string userId, string newRole); 
         Task<List<ApplicationUser>> GetUsersByRoleAsync(string role, Guid companyId);
-
-
+        Task<ProfileDTO> GetProfileAsync(string userId);
+        Task<IdentityResult> UpdateProfileAsync(string userId, ProfileUpdateDTO model);
+        Task<IdentityResult> ChangePasswordAsync(string userId, string currentPassword, string newPassword);
 
     }
 }

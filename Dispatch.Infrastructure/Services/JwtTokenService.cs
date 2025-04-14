@@ -1,5 +1,6 @@
 ﻿using Dispatch.Application.Common.Interface;
 using Dispatch.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -24,7 +25,8 @@ namespace Dispatch.Infrastructure.Services
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(ClaimTypes.Name, user.UserName ?? ""),
                 new Claim(ClaimTypes.Email, user.Email ?? ""),
-                new Claim("CompanyId", user.CompanyId.ToString())
+                new Claim("CompanyId", user.CompanyId.ToString()),
+                new Claim("CompanyName", user.CompanyName)
             };
 
             foreach (var role in roles)
@@ -45,5 +47,6 @@ namespace Dispatch.Infrastructure.Services
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
     }
 }

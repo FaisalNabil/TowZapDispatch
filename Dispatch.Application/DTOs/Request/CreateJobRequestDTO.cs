@@ -1,6 +1,7 @@
 ﻿using Dispatch.Domain.Enums;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,7 +17,9 @@ namespace Dispatch.Application.DTOs.Request
 
         // Vehicle Info
         public string VIN { get; set; }
+        [RegularExpression(@"^\d{4}$", ErrorMessage = "Enter a valid 4-digit year")]
         public string Year { get; set; }
+
         public string Make { get; set; }
         public string Model { get; set; }
         public string Color { get; set; }

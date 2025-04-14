@@ -3,17 +3,21 @@ using Dispatch.Application.DTOs.Request;
 using Dispatch.Domain.Entities;
 using Dispatch.Domain.Enums;
 using Dispatch.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Dispatch.Infrastructure.Services
 {
     public class JobRequestService : IJobRequestService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public JobRequestService(ApplicationDbContext context)
+        public JobRequestService(ApplicationDbContext context, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<List<JobResponseDTO>> GetJobsForDispatcherAsync(string dispatcherId)
@@ -30,6 +34,17 @@ namespace Dispatch.Infrastructure.Services
                 .Where(j => j.AssignedDriverId == driverId)
                 .Select(j => MapToDTO(j))
                 .ToListAsync();
+        }
+        public async Task<JobResponseDTO?> GetCurrentActiveJobForDriverAsync(string driverId)
+        {
+            var job = await _context.JobRequests
+                .Where(j => j.AssignedDriverId == driverId &&
+                            j.Status != JobStatus.Completed &&
+                            j.Status != JobStatus.Cancelled)
+                .OrderByDescending(j => j.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            return job != null ? MapToDTO(job) : null;
         }
 
         public async Task<List<JobResponseDTO>> GetJobsForCompanyAsync(Guid companyId)
@@ -79,6 +94,8 @@ namespace Dispatch.Infrastructure.Services
             _context.JobRequests.Add(job);
             await _context.SaveChangesAsync();
 
+            await AddStatusHistoryAsync(job.Id, dispatcherId, JobStatus.Pending);
+
             return job.Id;
         }
 
@@ -88,9 +105,43 @@ namespace Dispatch.Infrastructure.Services
             if (job == null) return false;
 
             job.Status = status;
+
+            var userId = "system"; // default fallback
+            if (_httpContextAccessor.HttpContext?.User.Identity?.IsAuthenticated ?? false)
+            {
+                userId = _httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            }
+
+            await AddStatusHistoryAsync(jobId, userId, status);
+
             await _context.SaveChangesAsync();
             return true;
         }
+
+        private async Task AddStatusHistoryAsync(Guid jobId, string userId, JobStatus status, string? note = null)
+        {
+            var recentDuplicate = await _context.JobStatusHistoies
+    .Where(x => x.JobRequestId == jobId && x.Status == status)
+    .OrderByDescending(x => x.Timestamp)
+    .FirstOrDefaultAsync();
+
+            if (recentDuplicate != null && (DateTime.UtcNow - recentDuplicate.Timestamp).TotalMinutes < 10)
+                return; // Don't log same status again within 10 minutes
+
+            var entry = new JobStatusHistory
+            {
+                Id = Guid.NewGuid(),
+                JobRequestId = jobId,
+                UpdatedByUserId = userId,
+                Status = status,
+                Timestamp = DateTime.UtcNow,
+                Note = note
+            };
+
+            _context.JobStatusHistoies.Add(entry);
+            await _context.SaveChangesAsync();
+        }
+
 
         public async Task<bool> AssignDriverAsync(Guid jobId, string driverUserId)
         {
@@ -100,14 +151,7 @@ namespace Dispatch.Infrastructure.Services
             job.AssignedDriverId = driverUserId;
             job.Status = JobStatus.Assigned;
 
-            _context.DriverStatuses.Add(new DriverStatus
-            {
-                Id = Guid.NewGuid(),
-                JobRequestId = jobId,
-                DriverUserId = driverUserId,
-                Timestamp = DateTime.UtcNow,
-                Status = "Assigned"
-            });
+            await AddStatusHistoryAsync(jobId, driverUserId, JobStatus.Assigned);
 
             await _context.SaveChangesAsync();
             return true;

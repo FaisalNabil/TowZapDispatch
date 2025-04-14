@@ -1,4 +1,5 @@
-﻿window.toast = {
+﻿// ==================== TOAST NOTIFICATIONS ====================
+window.toast = {
     success: function (message) {
         toastr.success(message);
     },
@@ -13,8 +14,20 @@
     }
 };
 
-window.maps = window.maps || {};
+// ==================== SIDEBAR CONTROLS ====================
+function closeOffcanvasSidebar() {
+    const sidebar = bootstrap.Offcanvas.getInstance(document.getElementById('sidebar'));
+    if (sidebar) {
+        sidebar.hide();
+    }
+}
 
+// ==================== GLOBAL INITIALIZATION ====================
+window.maps = window.maps || {};
+window.driverMaps = window.driverMaps || {};
+
+
+// ==================== REVERSE GEOCODING ====================
 window.maps.initLocationPicker = function (mapId, dotNetHelper) {
     const map = L.map(mapId).setView([23.8103, 90.4125], 13); // Default center
 
@@ -47,6 +60,7 @@ window.maps.initLocationPicker = function (mapId, dotNetHelper) {
 };
 
 window.reverseGeocodeCache = {};
+
 async function reverseGeocode(lat, lon, dotNetHelper) {
     const key = `${lat.toFixed(5)},${lon.toFixed(5)}`;
 
@@ -61,11 +75,22 @@ async function reverseGeocode(lat, lon, dotNetHelper) {
 
     if (data && data.display_name) {
         const address = data.display_name;
-        window.reverseGeocodeCache[key] = address; // 🧠 Cache it
+        window.reverseGeocodeCache[key] = address;
         await dotNetHelper.invokeMethodAsync('OnAddressSelected', address);
     }
 }
 
+async function reverseGeocodeAndSend(lat, lon, dotNetHelper) {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data?.display_name) {
+        await dotNetHelper.invokeMethodAsync("OnLocationSelectedJS", data.display_name, parseFloat(lat), parseFloat(lon));
+    }
+}
+
+// ==================== ICONS ====================
 const sourceIcon = L.icon({
     iconUrl: 'images/source-marker.png',
     iconSize: [30, 30],
@@ -80,10 +105,11 @@ const destinationIcon = L.icon({
 
 const towTruckIcon = L.icon({
     iconUrl: 'images/towtruck-icon.png',
-    iconSize: [40, 40], // adjust size
-    iconAnchor: [20, 20], // center point
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
 });
 
+// ==================== BASIC MAP INITIALIZATION ====================
 window.initMap = function (mapId, lat, lng, fromLat, fromLng, toLat, toLng, towardSource) {
     const map = L.map(mapId).setView([lat, lng], 13);
 
@@ -115,6 +141,7 @@ window.initMap = function (mapId, lat, lng, fromLat, fromLng, toLat, toLng, towa
     };
 };
 
+// ==================== DRIVER LOCATION UPDATES ====================
 window.updateDriverLocation = function (mapId, lat, lng) {
     const mapObj = window.driverMaps?.[mapId];
     if (!mapObj) return;
@@ -123,17 +150,27 @@ window.updateDriverLocation = function (mapId, lat, lng) {
     const angle = getAngle(mapObj.lastLatLng, newLatLng);
 
     mapObj.marker.setLatLng(newLatLng);
-    mapObj.marker.setRotationAngle?.(angle); // safe call
+    mapObj.marker.setRotationAngle?.(angle);
     mapObj.map.setView(newLatLng);
 
-    // Animate trail toward correct end
     const endPoint = mapObj.towardSource ? mapObj.source : mapObj.destination;
-    mapObj.trail.setLatLngs([newLatLng, endPoint]);
+
+    console.log("Fetching optimal route from", newLatLng, "to", endPoint);
+
+    fetchOptimalRoute(lat, lng, endPoint.lat, endPoint.lng).then(routeCoords => {
+        if (routeCoords.length > 0) {
+            console.log("✅ Route coords:", routeCoords);
+            mapObj.trail.setLatLngs(routeCoords);
+        } else {
+            console.warn("❌ Route empty, falling back to straight line.");
+            mapObj.trail.setLatLngs([newLatLng, endPoint]);
+        }
+    });
 
     mapObj.lastLatLng = newLatLng;
 };
 
-// Calculate rotation angle in degrees
+
 function getAngle(start, end) {
     const dx = end.lng - start.lng;
     const dy = end.lat - start.lat;
@@ -141,22 +178,30 @@ function getAngle(start, end) {
     return rad * 180 / Math.PI;
 }
 
+// ==================== ROUTING: FETCH OPTIMAL ROUTE ====================
+async function fetchOptimalRoute(fromLat, fromLng, toLat, toLng) {
+    try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`;
+        const response = await fetch(url);
+        const data = await response.json();
 
-
-window.maps.initLocationPickerWithSearch = function (mapId, dotNetHelper) {
-    const mapContainer = document.getElementById(mapId);
-    if (!mapContainer) {
-        console.warn(`Map container with id '${mapId}' not found.`);
-        return;
+        if (data.routes?.length > 0) {
+            const coords = data.routes[0].geometry.coordinates;
+            // Convert [lng, lat] to Leaflet-friendly [lat, lng]
+            return coords.map(coord => [coord[1], coord[0]]);
+        }
+    } catch (error) {
+        console.error("Route fetch failed:", error);
     }
 
+    return []; // fallback
+}
 
-    // Remove any old instance (in case of modal reopen)
-    if (window.maps[mapId]?.map) {
-        window.maps[mapId].map.remove();
-    }
 
+// ==================== LOCATION PICKER ====================
+window.maps.initLocationPicker = function (mapId, dotNetHelper) {
     const map = L.map(mapId).setView([23.8103, 90.4125], 13);
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
@@ -186,6 +231,7 @@ window.maps.initLocationPickerWithSearch = function (mapId, dotNetHelper) {
     };
 };
 
+// ==================== LOCATION SEARCH ====================
 window.maps.searchLocation = async function (mapId, query) {
     if (!query || query.length < 3) return;
 
@@ -212,15 +258,3 @@ window.maps.searchLocation = async function (mapId, query) {
         reverseGeocodeAndSend(lat, lon, mapObj.dotNetHelper);
     }
 };
-
-async function reverseGeocodeAndSend(lat, lon, dotNetHelper) {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (data?.display_name) {
-        await dotNetHelper.invokeMethodAsync("OnLocationSelectedJS", data.display_name, parseFloat(lat), parseFloat(lon));
-    }
-}
-
-

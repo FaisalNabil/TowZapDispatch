@@ -42,6 +42,19 @@ namespace Dispatch.API.Controllers
             var jobs = await _jobService.GetJobsForDriverAsync(userId);
             return Ok(jobs);
         }
+        [HttpGet("driver/current")]
+        [Authorize(Roles = UserRoles.Driver)]
+        public async Task<IActionResult> GetCurrentJobForDriver()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var job = await _jobService.GetCurrentActiveJobForDriverAsync(userId);
+
+            if (job == null)
+                return NotFound("No active job assigned.");
+
+            return Ok(job);
+        }
+
 
         [HttpGet("company")]
         [Authorize(Roles = UserRoles.CompanyAdministrator)]

@@ -12,10 +12,11 @@ namespace Dispatch.Infrastructure.Persistence
         public DbSet<ApplicationUser> Users { get; set; }
         public DbSet<ApplicationRole> Roles { get; set; }
         public DbSet<ApplicationUserRole> UserRoles { get; set; }
+        public DbSet<Company> Companies { get; set; }
 
         // Your domain entities
         public DbSet<JobRequest> JobRequests { get; set; }
-        public DbSet<DriverStatus> DriverStatuses { get; set; }
+        public DbSet<JobStatusHistory> JobStatusHistoies { get; set; }
         public DbSet<ImpoundFeeRecord> ImpoundFees { get; set; }
         public DbSet<NotificationLetter> NotificationLetters { get; set; }
 

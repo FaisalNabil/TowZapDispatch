@@ -55,23 +55,34 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Keys <i class="bi bi-key ms-1"></i></label>
 
-                                <InputRadioGroup @bind-Value=@job.Keys>
-                                    @foreach (var key in new[] { true, false })
+                                <InputRadioGroup @bind-Value="job.Keys">
+                                    @foreach (var option in new[] { "Yes", "No", "Stuck in ignition", "Other" })
                                     {
                                         <div class="form-check form-check-inline">
-                                            <InputRadio class="form-check-input" Value=@key />
-                                            <label class="form-check-label">@key</label>
+                                            <InputRadio class="form-check-input" Value="@option" />
+                                            <label class="form-check-label">@option</label>
                                         </div>
                                     }
                                 </InputRadioGroup>
 
+                                @if (job.Keys == "Other")
+                                {
+                                    <div class="mt-2">
+                                        <label class="form-label">Describe Key Situation</label>
+                                        <InputText class="form-control" @bind-Value="customKeyNote" />
+                                    </div>
+                                }
                             </div>
 
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Year</label>
-                                <InputText class="form-control" @bind-Value="job.Year" />
+                                <InputText class="form-control"
+                                           @bind-Value="job.Year"
+                                           maxlength="4"
+                                           pattern="\d{4}"
+                                           title="Enter a valid 4-digit year" />
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Unit #</label>
@@ -81,7 +92,20 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Make</label>
-                                <InputText class="form-control" @bind-Value="job.Make" />
+                                <InputSelect class="form-select" @bind-Value="job.Make">
+                                    <option value="">-- Select Make --</option>
+                                    @foreach (var make in CommonMakes)
+                                    {
+                                        <option value="@make">@make</option>
+                                    }
+                                    <option value="Other">Other</option>
+                                </InputSelect>
+
+                                @if (job.Make == "Other")
+                                {
+                                    <InputText class="form-control mt-2" @bind-Value="customMake" placeholder="Enter Make" />
+                                }
+
                             </div>
 
                             <div class="col-md-6 mb-3">
@@ -93,7 +117,20 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Model</label>
-                                <InputText class="form-control" @bind-Value="job.Model" />
+                                <InputSelect class="form-select" @bind-Value="job.Model">
+                                    <option value="">-- Select Model --</option>
+                                    @foreach (var model in CommonModels)
+                                    {
+                                        <option value="@model">@model</option>
+                                    }
+                                    <option value="Other">Other</option>
+                                </InputSelect>
+
+                                @if (job.Model == "Other")
+                                {
+                                    <InputText class="form-control mt-2" @bind-Value="customModel" placeholder="Enter Model" />
+                                }
+
                             </div>
                         </div>
                         <div class="row">
@@ -222,6 +259,10 @@
     private string selectedReason;
     private string customReason, customColor;
     private List<DriverDropdownDTO> companyDrivers = new();
+    private string customMake, customModel, customKeyNote;
+    private readonly string[] CommonMakes = new[] { "Ford", "Chevrolet", "Honda", "Nissan", "Toyota", "BMW", "Mercedes" };
+    private readonly string[] CommonModels = new[] { "F150", "Civic", "Sentra", "Accord", "Camry", "X5" };
+
 
     private EventCallback<LocationResult> FromLocationCallback => EventCallback.Factory.Create<LocationResult>(this, OnFromLocationSelected);
     private EventCallback<LocationResult> ToLocationCallback => EventCallback.Factory.Create<LocationResult>(this, OnToLocationSelected);
@@ -253,14 +294,13 @@
 
     private async Task CreateJobAsync()
     {
-        if (selectedReason == "Other")
-        {
-            job.Reason = customReason;
-        }
-        if (job.Color == "Other")
-        {
-            job.Color = customColor;
-        }
+        if (selectedReason == "Other") job.Reason = customReason;
+        if (job.Color == "Other") job.Color = customColor;
+        
+        if (job.Make == "Other") job.Make = customMake;
+        if (job.Model == "Other") job.Model = customModel;
+        if (job.Keys == "Other") job.Keys = customKeyNote;
+
 
         var result = await JobService.CreateJobAsync(job);
         if (result)

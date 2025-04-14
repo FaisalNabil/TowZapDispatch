@@ -52,7 +52,9 @@ namespace TowZap.DriverApp.ViewModels
 
                 if (result != null)
                 {
-                    Preferences.Set("auth_token", result.Token);
+                    Preferences.Set("user_fullname", result.FullName);
+                    Preferences.Set("user_role", result.Role);
+                    await SecureStorage.SetAsync("auth_token", result.Token);
 
                     // Navigate to dashboard only if Shell is ready
                     if (Shell.Current != null)

@@ -1,0 +1,9 @@
+{
+  "ApiBaseUrl": "https://10.0.2.2:7194/api/",
+
+  "ApiBaseUrlEmulator": "https://10.0.2.2:7194/api/",
+
+  "ApiBaseUrlPhysicalApp": "http://192.168.1.100:7194/api/",
+
+  "ApiBaseUrlLocal": "https://localhost:7194/api/"
+}

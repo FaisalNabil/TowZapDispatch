@@ -44,6 +44,13 @@ namespace Dispatch.Infrastructure.Services
                 .Select(ur => ur.Role.Name)  // Assuming navigation property is set
                 .FirstOrDefaultAsync();
 
+            string companyName = await _db.Companies
+        .Where(c => c.Id == user.CompanyId)
+        .Select(c => c.Name)
+        .FirstOrDefaultAsync() ?? "Unknown Company";
+
+            user.CompanyName = companyName;
+
             var token = _jwtTokenService.GenerateToken(user, new List<string> { role });
 
             return new LoginResponseDTO
@@ -168,5 +175,47 @@ namespace Dispatch.Infrastructure.Services
 
             return users;
         }
+        public async Task<ProfileDTO> GetProfileAsync(string userId)
+        {
+            var user = await _db.Users.FindAsync(userId);
+            return user == null ? null : new ProfileDTO
+            {
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Email = user.Email,
+                Phone = user.PhoneNumber
+            };
+        }
+
+        public async Task<IdentityResult> UpdateProfileAsync(string userId, ProfileUpdateDTO model)
+        {
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null) return IdentityResult.Failed();
+
+            user.FirstName = model.FirstName;
+            user.LastName = model.LastName;
+            user.PhoneNumber = model.Phone;
+
+            _db.Users.Update(user);
+            await _db.SaveChangesAsync();
+
+            return IdentityResult.Success;
+        }
+
+        public async Task<IdentityResult> ChangePasswordAsync(string userId, string currentPassword, string newPassword)
+        {
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null) return IdentityResult.Failed();
+
+            var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, currentPassword);
+            if (result == PasswordVerificationResult.Failed)
+                return IdentityResult.Failed(new IdentityError { Description = "Current password is incorrect." });
+
+            user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
+            await _db.SaveChangesAsync();
+
+            return IdentityResult.Success;
+        }
+
     }
 }
