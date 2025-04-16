@@ -7,28 +7,40 @@ using TowZap.DriverApp.Models;
 using TowZap.DriverApp.Services;
 using TowZap.DriverApp.Enums;
 using TowZap.DriverApp.Helper;
+using TowZap.DriverApp.Constants;
 
 namespace TowZap.DriverApp.ViewModels
 {
     public class DashboardViewModel : BaseViewModel
     {
         private readonly JobService _jobService;
+        private readonly GeocodingService _geocoding;
         private readonly SignalRClientService _signalRService;
+        private readonly SessionManager _session;
 
-        public DashboardViewModel(JobService jobService, SignalRClientService signalRService)
+        public DashboardViewModel(JobService jobService, SignalRClientService signalRService, GeocodingService geocoding, SessionManager session)
         {
             _jobService = jobService;
             _signalRService = signalRService;
+            _geocoding = geocoding;
+            _session = session;
             _ = InitializeAsync();
 
             ViewJobCommand = new Command(async () => await ViewJobDetails());
-            LogoutCommand = new Command(async () => await Logout());
+            OpenSettingsCommand = new Command(async () => await OpenSettings());
             AcceptJobCommand = new Command(async () => await AcceptJobAsync());
             DeclineJobCommand = new Command(async () => await DeclineJobAsync());
 
         }
 
         #region Properties
+        public string FullName { get; set; }
+        public string CompanyName { get; set; }
+        public string Role { get; set; }
+
+        public bool IsDriver => Role == UserRoles.Driver;
+        public bool IsDispatcher => Role == UserRoles.Dispatcher;
+        public bool IsCompanyAdmin => Role == UserRoles.CompanyAdministrator;
 
         private JobResponse _currentJob;
         public JobResponse CurrentJob
@@ -75,7 +87,7 @@ namespace TowZap.DriverApp.ViewModels
         #region Commands
 
         public ICommand ViewJobCommand { get; }
-        public ICommand LogoutCommand { get; }
+        public ICommand OpenSettingsCommand { get; }
         public ICommand AcceptJobCommand { get; }
         public ICommand DeclineJobCommand { get; }
 
@@ -84,8 +96,24 @@ namespace TowZap.DriverApp.ViewModels
         #region Core Logic
         private async Task InitializeAsync()
         {
+            await LoadUserInfo();
             await LoadCurrentJob();
             await ConnectSignalR();
+        }
+        private async Task LoadUserInfo()
+        {
+            await _session.InitializeAsync();
+
+            FullName = _session.FullName ?? "User";
+            CompanyName = _session.CompanyName ?? "Company";
+            Role = _session.Role ?? "Unknown";
+
+            OnPropertyChanged(nameof(FullName));
+            OnPropertyChanged(nameof(CompanyName));
+            OnPropertyChanged(nameof(Role));
+            OnPropertyChanged(nameof(IsDriver));
+            OnPropertyChanged(nameof(IsDispatcher));
+            OnPropertyChanged(nameof(IsCompanyAdmin));
         }
 
         private async Task LoadCurrentJob()
@@ -98,41 +126,19 @@ namespace TowZap.DriverApp.ViewModels
 
         private async Task LoadAddressesAsync(JobResponse job)
         {
-            FromAddress = await ReverseGeocodeAsync(job.FromLatitude, job.FromLongitude);
-            ToAddress = await ReverseGeocodeAsync(job.ToLatitude, job.ToLongitude);
-        }
-
-        private async Task<string> ReverseGeocodeAsync(double lat, double lng)
-        {
-            try
-            {
-                using var http = new HttpClient();
-                var url = $"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat}&lon={lng}";
-                http.DefaultRequestHeaders.Add("User-Agent", "TowZapDriverApp");
-
-                var response = await http.GetStringAsync(url);
-                using var json = JsonDocument.Parse(response);
-                if (json.RootElement.TryGetProperty("display_name", out var name))
-                    return name.GetString();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Reverse geocode failed: {ex.Message}");
-            }
-
-            return $"{lat}, {lng}";
+            FromAddress = await _geocoding.ReverseGeocodeAsync(job.FromLatitude, job.FromLongitude);
+            ToAddress = await _geocoding.ReverseGeocodeAsync(job.ToLatitude, job.ToLongitude);
         }
 
         private async Task ViewJobDetails()
         {
             if (CurrentJob != null)
-                await Shell.Current.GoToAsync($"//JobDetailPage?jobId={CurrentJob.Id}");
+                await Shell.Current.GoToAsync($"JobDetailPage?jobId={CurrentJob.Id}");
         }
 
-        private async Task Logout()
+        private async Task OpenSettings()
         {
-            Preferences.Clear();
-            await Shell.Current.GoToAsync("//LoginPage");
+            await Shell.Current.GoToAsync("//SettingsPage");
         }
 
         #endregion

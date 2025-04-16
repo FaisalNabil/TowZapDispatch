@@ -54,6 +54,12 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.ListenAnyIP(5047); // ✅ open HTTP port to all IPs
+});
+
+
 // Add app services
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -82,7 +88,13 @@ app.UseMiddleware<ExpiryMiddleware>();
 
 app.UseCors("AllowTowZapClient");
 
+
+#if DEBUG
+#else
+
 app.UseHttpsRedirection();
+
+#endif
 
 app.UseAuthentication();
 app.UseAuthorization();

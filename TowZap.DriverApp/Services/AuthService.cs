@@ -15,7 +15,8 @@ namespace TowZap.DriverApp.Services
 
         public async Task<LoginResponse?> LoginAsync(LoginRequest request)
         {
-            return await PostAsync<LoginRequest, LoginResponse>("auth/login", request);
+            var result = await PostAsync<LoginRequest, LoginResponse>("auth/login", request);
+            return result;
         }
     }
 }

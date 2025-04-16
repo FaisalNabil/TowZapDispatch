@@ -31,6 +31,7 @@ namespace TowZap.DriverApp
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
                 });
+            builder.UseMauiMaps();
 
             builder.Services.AddSingleton<HttpClient>(sp =>
             {
@@ -62,6 +63,9 @@ namespace TowZap.DriverApp
             builder.Services.AddSingleton<DashboardViewModel>();
             builder.Services.AddSingleton<DashboardPage>();
             builder.Services.AddSingleton<SignalRClientService>();
+            builder.Services.AddSingleton<SessionManager>();
+            builder.Services.AddSingleton<ActivityPage>();
+            builder.Services.AddTransient<ActivityViewModel>();
 
 #if DEBUG
             builder.Logging.AddDebug();

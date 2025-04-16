@@ -12,7 +12,6 @@ namespace Dispatch.Application.Common.Interface
 {
     public interface IUserService
     {
-        Task<LoginResponseDTO> LoginAsync(LoginRequestDTO request);
         Task<IdentityResult> RegisterAsync(ApplicationUser user, string password, string role, Guid? companyId = null);
         Task<IdentityResult> ApproveDriverAsync(string userId); 
         Task<List<UserSummaryDTO>> GetUsersUnderCompanyAsync(Guid companyId); 

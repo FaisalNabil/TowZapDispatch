@@ -8,6 +8,6 @@ namespace TowZap.DriverApp.Config
 {
     public static class AppSettings
     {
-        public static string ApiBaseUrl => "https://10.0.2.2:7194/api/";
+        public static string ApiBaseUrl => "http://api.thetowawayzone.com/api/";
     }
 }

@@ -9,8 +9,10 @@ public partial class DashboardPage : ContentPage
 		InitializeComponent();
 
         var jobService = ServiceHelper.GetService<JobService>();
+        var geocodingService = ServiceHelper.GetService<GeocodingService>();
         var signalRService = ServiceHelper.GetService<SignalRClientService>();
+        var sessionManager = ServiceHelper.GetService<SessionManager>();
 
-        BindingContext = new DashboardViewModel(jobService, signalRService);
+        BindingContext = new DashboardViewModel(jobService, signalRService, geocodingService, sessionManager);
     }
 }

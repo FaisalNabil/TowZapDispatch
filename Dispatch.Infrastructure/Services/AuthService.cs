@@ -2,6 +2,7 @@
 using Dispatch.Application.DTOs.Auth;
 using Dispatch.Domain.Entities;
 using Dispatch.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -15,68 +16,52 @@ namespace Dispatch.Infrastructure.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly IJwtTokenService _jwtTokenService;
+        private readonly PasswordHasher<ApplicationUser> _passwordHasher;
 
-        public AuthService(ApplicationDbContext context, IConfiguration configuration)
+        public AuthService(ApplicationDbContext context, IConfiguration configuration, IJwtTokenService jwtTokenService)
         {
             _context = context;
             _configuration = configuration;
+            _jwtTokenService = jwtTokenService;
+            _passwordHasher = new PasswordHasher<ApplicationUser>();
         }
+
 
         public async Task<LoginResponseDTO> LoginAsync(LoginRequestDTO request)
         {
             var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == request.Email);
+                                 .Where(x => x.Email == request.Email)
+                                 .SingleOrDefaultAsync();
 
             if (user == null)
-                throw new UnauthorizedAccessException("Invalid credentials");
+                return null;
 
-            var passwordHasher = new Microsoft.AspNetCore.Identity.PasswordHasher<ApplicationUser>();
-            var result = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+            var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+            if (result == PasswordVerificationResult.Failed)
+                return null;
 
-            if (result != Microsoft.AspNetCore.Identity.PasswordVerificationResult.Success)
-                throw new UnauthorizedAccessException("Invalid credentials");
-
-            var roleName = await _context.UserRoles
+            var role = await _context.UserRoles
                 .Where(ur => ur.UserId == user.Id)
-                .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
+                .Select(ur => ur.Role.Name)  // Assuming navigation property is set
                 .FirstOrDefaultAsync();
 
-            var companyName = await _context.Companies
-                .Where(c => c.Id == user.CompanyId)
-                .Select(c => c.Name)
-                .FirstOrDefaultAsync();
+            string companyName = await _context.Companies
+        .Where(c => c.Id == user.CompanyId)
+        .Select(c => c.Name)
+        .FirstOrDefaultAsync() ?? "Unknown Company";
 
-            var token = GenerateJwtToken(user, roleName);
+            user.CompanyName = companyName;
+
+            var token = _jwtTokenService.GenerateToken(user, new List<string> { role });
 
             return new LoginResponseDTO
             {
                 Token = token,
                 FullName = $"{user.FirstName} {user.LastName}",
-                Role = roleName,
+                Role = role,
                 CompanyName = companyName
             };
-        }
-
-        private string GenerateJwtToken(ApplicationUser user, string role)
-        {
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, role ?? string.Empty)
-            };
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddDays(1),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
 }

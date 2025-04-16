@@ -1,0 +1,62 @@
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="TowZap.DriverApp.Views.ActivityPage"
+             Title="Activity"
+             xmlns:models="clr-namespace:TowZap.DriverApp.Models"
+             xmlns:dto="clr-namespace:TowZap.DriverApp.Models.DTOs"
+             xmlns:enums="clr-namespace:TowZap.DriverApp.Enums"
+             xmlns:viewmodels="clr-namespace:TowZap.DriverApp.ViewModels"
+             xmlns:converters="clr-namespace:TowZap.DriverApp.Converters"
+             x:DataType="viewmodels:ActivityViewModel">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+
+            <Label Text="Recent Jobs" FontSize="22" FontAttributes="Bold" />
+
+            <!-- Grouping Option -->
+            <Label Text="Group By:" FontAttributes="Bold" />
+            <Picker ItemsSource="{Binding GroupingOptions}" 
+                    SelectedItem="{Binding SelectedGrouping}" />
+
+            <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" />
+
+            <!-- Grouped View -->
+            <CollectionView ItemsSource="{Binding GroupedJobs}" IsVisible="{Binding HasJobs}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="dto:GroupedJobsDTO">
+                        <VerticalStackLayout>
+                            <Label Text="{Binding Key}" FontAttributes="Bold" FontSize="18" Margin="0,10,0,5" />
+                            <CollectionView ItemsSource="{Binding Jobs}" IsVisible="{Binding HasJobs}">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate x:DataType="models:JobResponse">
+                                        <Frame BorderColor="LightGray" CornerRadius="6" Padding="10" Margin="0,5">
+                                            <VerticalStackLayout>
+                                                <Label Text="{Binding Reason}" FontAttributes="Bold" FontSize="16" />
+                                                <Label Text="{Binding PlateNumber}" FontSize="14" />
+                                                <Label Text="{Binding CreatedAt, StringFormat='Created: {0:g}'}" FontSize="12" TextColor="Gray" />
+                                                <Label Text="{Binding Status}" FontSize="12" TextColor="DarkBlue" />
+                                            </VerticalStackLayout>
+                                        </Frame>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </VerticalStackLayout>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Label Text="No recent jobs found."
+                   IsVisible="{Binding HasJobs, Converter={StaticResource InverseBoolConverter}}"
+                   FontSize="14" TextColor="Gray"
+                   HorizontalOptions="Center" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

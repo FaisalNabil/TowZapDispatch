@@ -111,6 +111,30 @@ namespace TowZap.DriverApp.Services
                 return false;
             }
         }
+        protected async Task<bool> DeleteAsync(string endpoint)
+        {
+            try
+            {
+                await AddAuthHeaderAsync();
+
+                var response = await _httpClient.DeleteAsync(endpoint);
+                var result = await response.Content.ReadAsStringAsync();
+
+                Console.WriteLine($"DELETE {endpoint} => Status: {response.StatusCode}");
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"DELETE failed: {result}");
+                }
+
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"DELETE {endpoint} threw an exception: {ex.Message}");
+                return false;
+            }
+        }
 
     }
 }

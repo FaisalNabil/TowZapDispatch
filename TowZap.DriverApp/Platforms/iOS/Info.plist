@@ -30,6 +30,9 @@
 	<string>Assets.xcassets/appicon.appiconset</string>
 	<key>NSUserNotificationUsageDescription</key>
 	<string>We need to notify you when new jobs are assigned.</string>
-
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>We use your location for background tracking.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Application needs to access when app in use</string>
 </dict>
 </plist>

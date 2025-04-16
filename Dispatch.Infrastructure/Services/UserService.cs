@@ -15,51 +15,15 @@ namespace Dispatch.Infrastructure.Services
 {
     public class UserService : IUserService
     {
-        private readonly ApplicationDbContext _db;
-        private readonly IJwtTokenService _jwtTokenService;
+        private readonly ApplicationDbContext _context;
         private readonly PasswordHasher<ApplicationUser> _passwordHasher;
 
-        public UserService(ApplicationDbContext db, IJwtTokenService jwtTokenService)
+        public UserService(ApplicationDbContext context)
         {
-            _db = db;
-            _jwtTokenService = jwtTokenService;
+            _context = context;
             _passwordHasher = new PasswordHasher<ApplicationUser>();
         }
 
-        public async Task<LoginResponseDTO> LoginAsync(LoginRequestDTO request)
-        {
-            var user = await _db.Users
-                                 .Where(x => x.Email == request.Email)
-                                 .SingleOrDefaultAsync();
-
-            if (user == null)
-                return null;
-
-            var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
-            if (result == PasswordVerificationResult.Failed)
-                return null;
-
-            var role = await _db.UserRoles
-                .Where(ur => ur.UserId == user.Id)
-                .Select(ur => ur.Role.Name)  // Assuming navigation property is set
-                .FirstOrDefaultAsync();
-
-            string companyName = await _db.Companies
-        .Where(c => c.Id == user.CompanyId)
-        .Select(c => c.Name)
-        .FirstOrDefaultAsync() ?? "Unknown Company";
-
-            user.CompanyName = companyName;
-
-            var token = _jwtTokenService.GenerateToken(user, new List<string> { role });
-
-            return new LoginResponseDTO
-            {
-                Token = token,
-                FullName = $"{user.FirstName} {user.LastName}",
-                Role = role
-            };
-        }
 
         public async Task<IdentityResult> RegisterAsync(ApplicationUser user, string password, string role, Guid? companyId = null)
         {
@@ -70,13 +34,13 @@ namespace Dispatch.Infrastructure.Services
             user.PasswordHash = _passwordHasher.HashPassword(user, password);
 
             // Save user
-            _db.Users.Add(user);
+            _context.Users.Add(user);
 
-            var roleId = await _db.Roles.Where(r => r.Name == role).Select(r => r.Id).FirstOrDefaultAsync();
+            var roleId = await _context.Roles.Where(r => r.Name == role).Select(r => r.Id).FirstOrDefaultAsync();
             if (string.IsNullOrEmpty(roleId))
                 return IdentityResult.Failed(new IdentityError { Description = $"Role '{role}' does not exist." });
 
-            _db.UserRoles.Add(new ApplicationUserRole
+            _context.UserRoles.Add(new ApplicationUserRole
             {
                 UserId = user.Id,
                 RoleId = roleId
@@ -84,7 +48,7 @@ namespace Dispatch.Infrastructure.Services
 
             try
             {
-                await _db.SaveChangesAsync();
+                await _context.SaveChangesAsync();
                 return IdentityResult.Success;
             }
             catch (Exception ex)
@@ -95,30 +59,30 @@ namespace Dispatch.Infrastructure.Services
 
         public async Task<IdentityResult> ApproveDriverAsync(string userId)
         {
-            var user = await _db.Users.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             if (user == null)
                 return IdentityResult.Failed(new IdentityError { Description = "User not found." });
 
-            var pendingRoleId = await _db.Roles.Where(r => r.Name == "PendingDriver").Select(r => r.Id).FirstOrDefaultAsync();
-            var driverRoleId = await _db.Roles.Where(r => r.Name == "Driver").Select(r => r.Id).FirstOrDefaultAsync();
+            var pendingRoleId = await _context.Roles.Where(r => r.Name == "PendingDriver").Select(r => r.Id).FirstOrDefaultAsync();
+            var driverRoleId = await _context.Roles.Where(r => r.Name == "Driver").Select(r => r.Id).FirstOrDefaultAsync();
 
-            var userRole = await _db.UserRoles.FirstOrDefaultAsync(r => r.UserId == userId && r.RoleId == pendingRoleId);
+            var userRole = await _context.UserRoles.FirstOrDefaultAsync(r => r.UserId == userId && r.RoleId == pendingRoleId);
             if (userRole == null)
                 return IdentityResult.Failed(new IdentityError { Description = "User is not a pending driver." });
 
-            _db.UserRoles.Remove(userRole);
-            _db.UserRoles.Add(new ApplicationUserRole
+            _context.UserRoles.Remove(userRole);
+            _context.UserRoles.Add(new ApplicationUserRole
             {
                 UserId = userId,
                 RoleId = driverRoleId
             });
 
-            await _db.SaveChangesAsync();
+            await _context.SaveChangesAsync();
             return IdentityResult.Success;
         }
         public async Task<List<UserSummaryDTO>> GetUsersUnderCompanyAsync(Guid companyId)
         {
-            var users = await _db.Users
+            var users = await _context.Users
                 .Where(u => u.CompanyId == companyId)
                 .Select(u => new UserSummaryDTO
                 {
@@ -126,8 +90,8 @@ namespace Dispatch.Infrastructure.Services
                     FullName = u.FirstName + " " + u.LastName,
                     Email = u.Email,
                     PhoneNumber = u.PhoneNumber,
-                    Role = (from ur in _db.UserRoles
-                            join r in _db.Roles on ur.RoleId equals r.Id
+                    Role = (from ur in _context.UserRoles
+                            join r in _context.Roles on ur.RoleId equals r.Id
                             where ur.UserId == u.Id
                             select r.Name).FirstOrDefault(),
                     IsActive = !u.IsDisabled
@@ -138,36 +102,36 @@ namespace Dispatch.Infrastructure.Services
         }
         public async Task<ApplicationUser?> GetUserByIdAsync(string userId)
         {
-            return await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            return await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
         }
 
         public async Task<IdentityResult> PromoteUserAsync(string userId, string newRole)
         {
-            var user = await _db.Users.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             if (user == null)
                 return IdentityResult.Failed(new IdentityError { Description = "User not found." });
 
             // Remove existing role(s)
-            var userRoles = _db.UserRoles.Where(ur => ur.UserId == userId);
-            _db.UserRoles.RemoveRange(userRoles);
+            var userRoles = _context.UserRoles.Where(ur => ur.UserId == userId);
+            _context.UserRoles.RemoveRange(userRoles);
 
             // Add new role
-            var newRoleId = await _db.Roles.Where(r => r.Name == newRole).Select(r => r.Id).FirstOrDefaultAsync();
+            var newRoleId = await _context.Roles.Where(r => r.Name == newRole).Select(r => r.Id).FirstOrDefaultAsync();
             if (string.IsNullOrEmpty(newRoleId))
                 return IdentityResult.Failed(new IdentityError { Description = $"Role '{newRole}' does not exist." });
 
-            _db.UserRoles.Add(new ApplicationUserRole
+            _context.UserRoles.Add(new ApplicationUserRole
             {
                 UserId = userId,
                 RoleId = newRoleId
             });
 
-            await _db.SaveChangesAsync();
+            await _context.SaveChangesAsync();
             return IdentityResult.Success;
         }
         public async Task<List<ApplicationUser>> GetUsersByRoleAsync(string role, Guid companyId)
         {
-            var users = await _db.UserRoles
+            var users = await _context.UserRoles
                 .Where(ur => ur.Role.Name == role) // Assuming navigation property
                 .Select(ur => ur.User)
                 .Where(u => u.CompanyId == companyId)
@@ -177,7 +141,7 @@ namespace Dispatch.Infrastructure.Services
         }
         public async Task<ProfileDTO> GetProfileAsync(string userId)
         {
-            var user = await _db.Users.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             return user == null ? null : new ProfileDTO
             {
                 FirstName = user.FirstName,
@@ -189,22 +153,22 @@ namespace Dispatch.Infrastructure.Services
 
         public async Task<IdentityResult> UpdateProfileAsync(string userId, ProfileUpdateDTO model)
         {
-            var user = await _db.Users.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             if (user == null) return IdentityResult.Failed();
 
             user.FirstName = model.FirstName;
             user.LastName = model.LastName;
             user.PhoneNumber = model.Phone;
 
-            _db.Users.Update(user);
-            await _db.SaveChangesAsync();
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
 
             return IdentityResult.Success;
         }
 
         public async Task<IdentityResult> ChangePasswordAsync(string userId, string currentPassword, string newPassword)
         {
-            var user = await _db.Users.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             if (user == null) return IdentityResult.Failed();
 
             var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, currentPassword);
@@ -212,7 +176,7 @@ namespace Dispatch.Infrastructure.Services
                 return IdentityResult.Failed(new IdentityError { Description = "Current password is incorrect." });
 
             user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
-            await _db.SaveChangesAsync();
+            await _context.SaveChangesAsync();
 
             return IdentityResult.Success;
         }

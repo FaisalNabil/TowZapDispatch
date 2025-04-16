@@ -17,6 +17,7 @@ namespace TowZap.DriverApp.ViewModels
         private string _email;
         private string _password;
         private readonly AuthService _authService;
+        private readonly SessionManager _session;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -34,9 +35,10 @@ namespace TowZap.DriverApp.ViewModels
 
         public ICommand LoginCommand { get; }
 
-        public LoginViewModel(AuthService authService)
+        public LoginViewModel(AuthService authService, SessionManager sessionManager)
         {
             _authService = authService;
+            _session = sessionManager;
             LoginCommand = new Command(async () => await LoginAsync());
         }
 
@@ -52,12 +54,11 @@ namespace TowZap.DriverApp.ViewModels
 
                 if (result != null)
                 {
-                    Preferences.Set("user_fullname", result.FullName);
-                    Preferences.Set("user_role", result.Role);
-                    await SecureStorage.SetAsync("auth_token", result.Token);
+                    await _session.SaveSessionAsync(result);
 
                     // Navigate to dashboard only if Shell is ready
-                    if (Shell.Current != null)
+                    if (Shell.Current != null) 
+                        //Shell.Current.CurrentItem = Shell.Current.Items[0];
                         await Shell.Current.GoToAsync("//DashboardPage");
                     else
                         await DialogHelper.Show("Error", "Navigation failed: Shell not ready.");

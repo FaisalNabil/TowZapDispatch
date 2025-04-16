@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TowZap.DriverApp.Models;
 using TowZap.DriverApp.Enums;
+using TowZap.DriverApp.Models.DTOs;
 
 namespace TowZap.DriverApp.Services
 {
@@ -28,6 +29,20 @@ namespace TowZap.DriverApp.Services
         {
             return await PutAsync($"jobrequests/{jobId}/status", newStatus);
         }
+        public async Task<List<MetaEnumDTO>> GetJobStatusOptionsAsync()
+        {
+            return await GetAsync<List<MetaEnumDTO>>("meta/job-statuses") ?? new List<MetaEnumDTO>();
+        }
+        public async Task<List<DriverStatusHistoryItemDTO>> GetJobStatusHistoryAsync(Guid jobId)
+        {
+            return await GetAsync<List<DriverStatusHistoryItemDTO>>($"jobstatus/{jobId}/status-history")
+                   ?? new List<DriverStatusHistoryItemDTO>();
+        }
+        public async Task<List<JobResponse>> GetJobsForDriverAsync()
+        {
+            return await GetAsync<List<JobResponse>>("jobrequests/driver") ?? new List<JobResponse>();
+        }
+
 
     }
 }

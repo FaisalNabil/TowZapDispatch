@@ -2,50 +2,67 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:TowZap.DriverApp.ViewModels"
              x:Class="TowZap.DriverApp.Views.DashboardPage"
-             Title="Driver Dashboard">
+             Title="Dashboard">
 
     <Grid>
-
-        <!-- Main Content Scroll -->
+        <!-- 🔃 Main Scroll Content -->
         <ScrollView>
             <VerticalStackLayout Padding="20" Spacing="20">
-                <Label Text="Welcome, Driver!" FontSize="22" HorizontalOptions="Center" />
 
-                <!-- ✅ Active Job -->
-                <Frame IsVisible="{Binding HasActiveJob}" BorderColor="Gray" Padding="10">
-                    <VerticalStackLayout>
-                        <HorizontalStackLayout>
-                            <Image Source="truck.png" HeightRequest="20" WidthRequest="20" />
-                            <Label Text="Active Job" FontSize="18" FontAttributes="Bold" Margin="5,0,0,0" />
-                        </HorizontalStackLayout>
+                <!-- 👤 User Info -->
+                <Label Text="{Binding FullName}" FontSize="22" FontAttributes="Bold" HorizontalOptions="Center" />
+                <Label Text="{Binding CompanyName}" FontSize="16" TextColor="Gray" HorizontalOptions="Center" />
+                <Label Text="{Binding Role}" FontSize="14" TextColor="DarkBlue" HorizontalOptions="Center" />
 
-                        <Label Text="Pickup:" FontAttributes="Bold" />
-                        <Label Text="{Binding FromAddress}" FontSize="14" />
+                <!-- 🚚 DRIVER SECTION -->
+                <Frame IsVisible="{Binding IsDriver}" BorderColor="Gray" Padding="10">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Driver Dashboard" FontSize="18" FontAttributes="Bold" />
 
-                        <Label Text="Dropoff:" FontAttributes="Bold" />
-                        <Label Text="{Binding ToAddress}" FontSize="14" />
+                        <!-- ✅ Active Job -->
+                        <Frame IsVisible="{Binding HasActiveJob}" BorderColor="LightGray" Padding="10">
+                            <VerticalStackLayout>
+                                <Label Text="Pickup:" FontAttributes="Bold" />
+                                <Label Text="{Binding FromAddress}" FontSize="14" />
 
-                        <Label Text="Status: " FontAttributes="Bold" />
-                        <Label Text="{Binding CurrentJob.Status}" />
+                                <Label Text="Dropoff:" FontAttributes="Bold" />
+                                <Label Text="{Binding ToAddress}" FontSize="14" />
 
-                        <Button Text="View Job Details"
-                                Command="{Binding ViewJobCommand}" />
+                                <Label Text="Status:" FontAttributes="Bold" />
+                                <Label Text="{Binding CurrentJob.Status}" />
+
+                                <Button Text="View Job Details" Command="{Binding ViewJobCommand}" />
+                            </VerticalStackLayout>
+                        </Frame>
+
+                        <Label IsVisible="{Binding NoActiveJob}"
+                               Text="You don't have any active jobs right now."
+                               FontSize="14"
+                               TextColor="Gray"
+                               HorizontalOptions="Center" />
                     </VerticalStackLayout>
                 </Frame>
 
-                <!-- ❌ No Job -->
-                <Label IsVisible="{Binding NoActiveJob}"
-                       Text="You don't have any active jobs right now."
-                       FontSize="16"
-                       TextColor="Gray"
-                       HorizontalOptions="Center" />
+                <!-- 🛠️ DISPATCHER SECTION -->
+                <Frame IsVisible="{Binding IsDispatcher}" BorderColor="Gray" Padding="10">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Dispatcher Dashboard" FontSize="18" FontAttributes="Bold" />
+                        <Label Text="Coming soon: Create job, manage assignments." FontSize="14" TextColor="Gray" />
+                    </VerticalStackLayout>
+                </Frame>
 
-                <!-- 📋 Controls -->
-                <Button Text="Profile / Logout" Command="{Binding LogoutCommand}" />
+                <!-- 🏢 COMPANY ADMIN SECTION -->
+                <Frame IsVisible="{Binding IsCompanyAdmin}" BorderColor="Gray" Padding="10">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Company Admin Dashboard" FontSize="18" FontAttributes="Bold" />
+                        <Label Text="Coming soon: User and job insights." FontSize="14" TextColor="Gray" />
+                    </VerticalStackLayout>
+                </Frame>
+
             </VerticalStackLayout>
         </ScrollView>
 
-        <!-- 🚨 Popup -->
+        <!-- 🚨 Job Assignment Popup -->
         <ContentView IsVisible="{Binding IsJobPopupVisible}" BackgroundColor="#80000000" Padding="20">
             <Frame BackgroundColor="White" CornerRadius="10" Padding="20" HorizontalOptions="Center" VerticalOptions="Center">
                 <VerticalStackLayout Spacing="10">
@@ -62,6 +79,5 @@
                 </VerticalStackLayout>
             </Frame>
         </ContentView>
-
     </Grid>
 </ContentPage>

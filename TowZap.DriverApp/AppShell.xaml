@@ -8,7 +8,30 @@
     Shell.FlyoutBehavior="Disabled"
     Title="TowZap">
 
-    <ShellContent Route="LoginPage" ContentTemplate="{DataTemplate views:LoginPage}" />
-    <ShellContent Route="DashboardPage" ContentTemplate="{DataTemplate views:DashboardPage}" />
+    <!-- ✅ Register login as separate route -->
+    <ShellContent Route="LoginPage"
+                  ContentTemplate="{DataTemplate views:LoginPage}"
+                  IsVisible="False" />
+
+    <TabBar>
+        <ShellContent
+        Title="Home"
+        Icon="home.png"
+        ContentTemplate="{DataTemplate views:DashboardPage}"
+        Route="DashboardPage" />
+        <!-- ✅ Add this -->
+
+        <ShellContent
+        Title="Activity"
+        Icon="activity.png"
+        ContentTemplate="{DataTemplate views:ActivityPage}"
+        Route="ActivityPage" />
+
+        <ShellContent
+        Title="Account"
+        Icon="settings.png"
+        ContentTemplate="{DataTemplate views:SettingsPage}"
+        Route="SettingsPage" />
+    </TabBar>
 
 </Shell>

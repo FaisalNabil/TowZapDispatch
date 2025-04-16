@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:TowZap.DriverApp.ViewModels"
+             xmlns:controls="clr-namespace:TowZap.DriverApp.Controls"
+             xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
+             x:Class="TowZap.DriverApp.Views.JobDetailPage"
+             Title="Job Detail"
+             x:DataType="vm:JobDetailViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+
+            <Label Text="Job Information" FontSize="22" FontAttributes="Bold" />
+
+            <Label Text="Caller:" FontAttributes="Bold" />
+            <Label Text="{Binding Job.CallerName}" />
+
+            <Label Text="Phone:" FontAttributes="Bold" />
+            <Label Text="{Binding Job.CallerPhone}" />
+
+            <Label Text="Vehicle:" FontAttributes="Bold" />
+            <Label Text="{Binding VehicleSummary}" />
+
+            <Label Text="Reason:" FontAttributes="Bold" />
+            <Label Text="{Binding Job.Reason}" />
+
+            <Label Text="Pickup Location:" FontAttributes="Bold" />
+            <Label Text="{Binding FromAddress}" />
+
+            <Label Text="Dropoff Location:" FontAttributes="Bold" />
+            <Label Text="{Binding ToAddress}" />
+
+            <Label Text="Status:" FontAttributes="Bold" />
+            <Label Text="{Binding Job.Status}" />
+
+            <controls:JobMapView
+                FromLatitude="{Binding Job.FromLatitude}"
+                FromLongitude="{Binding Job.FromLongitude}"
+                ToLatitude="{Binding Job.ToLatitude}"
+                ToLongitude="{Binding Job.ToLongitude}" />  
+
+
+
+            <controls:StatusTimeline StatusHistory="{Binding JobStatusHistory}" />
+
+            <Label Text="Update Status" FontAttributes="Bold" Margin="0,20,0,5" />
+            <Picker ItemsSource="{Binding StatusOptions}"
+                    ItemDisplayBinding="{Binding Label}"
+                    SelectedItem="{Binding SelectedStatus}" />
+
+            <Button Text="Update Status"
+                    Command="{Binding UpdateStatusCommand}"
+                    BackgroundColor="DodgerBlue"
+                    TextColor="White" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
