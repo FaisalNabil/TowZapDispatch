@@ -232,6 +232,49 @@ window.maps.initLocationPicker = function (mapId, dotNetHelper) {
 };
 
 // ==================== LOCATION SEARCH ====================
+window.maps.initLocationPickerWithSearch = function (mapId, dotNetHelper) {
+    const mapContainer = document.getElementById(mapId);
+    if (!mapContainer) {
+        console.warn(`Map container with id '${mapId}' not found.`);
+        return;
+    }
+
+
+    // Remove any old instance (in case of modal reopen)
+    if (window.maps[mapId]?.map) {
+        window.maps[mapId].map.remove();
+    }
+
+    const map = L.map(mapId).setView([23.8103, 90.4125], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let marker;
+
+    map.on('click', function (e) {
+        const { lat, lng } = e.latlng;
+
+        if (marker) {
+            marker.setLatLng([lat, lng]);
+        } else {
+            marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+            marker.on('dragend', function (event) {
+                const pos = event.target.getLatLng();
+                reverseGeocodeAndSend(pos.lat, pos.lng, dotNetHelper);
+            });
+        }
+
+        reverseGeocodeAndSend(lat, lng, dotNetHelper);
+    });
+
+    window.maps[mapId] = {
+        map: map,
+        marker: marker,
+        dotNetHelper: dotNetHelper
+    };
+};
+
 window.maps.searchLocation = async function (mapId, query) {
     if (!query || query.length < 3) return;
 

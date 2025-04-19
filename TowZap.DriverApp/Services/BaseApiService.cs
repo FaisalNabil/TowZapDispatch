@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using TowZap.DriverApp.Models;
 
 namespace TowZap.DriverApp.Services
 {
@@ -69,13 +70,21 @@ namespace TowZap.DriverApp.Services
 
                 Console.WriteLine($"POST {endpoint} => Status: {response.StatusCode}");
 
-                if (!response.IsSuccessStatusCode)
+                var apiResponse = JsonSerializer.Deserialize(responseBody, AppJsonContext.Default.GetTypeInfo(typeof(ApiResponse<T>))) as ApiResponse<T>;
+
+                if (apiResponse == null)
                 {
-                    Console.WriteLine($"POST failed: {responseBody}");
+                    Console.WriteLine($"POST failed: Unable to parse response");
                     return default;
                 }
 
-                return JsonSerializer.Deserialize(responseBody, AppJsonContext.Default.GetTypeInfo(typeof(T))) as T;
+                if (!apiResponse.IsSuccess)
+                {
+                    Console.WriteLine($"POST error message: {apiResponse.Message}");
+                    throw new Exception(apiResponse.Message ?? "Request failed.");
+                }
+
+                return apiResponse.Data;
             }
             catch (Exception ex)
             {

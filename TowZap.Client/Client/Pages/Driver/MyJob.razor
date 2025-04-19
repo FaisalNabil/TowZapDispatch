@@ -121,16 +121,18 @@ else
         if (job == null || !Enum.TryParse<JobStatus>(selectedStatus, out var status)) return;
 
         var result = await JobService.UpdateJobStatusAsync(job.Id, status);
-        if (result)
+        if (result.IsSuccess)
         {
             job.Status = status;
             jobStatusHistory = await JobService.GetJobStatusHistoryAsync(job.Id); // 👈 refresh timeline
-            await JS.InvokeVoidAsync("toast.success", "Status updated!");
+            await JS.InvokeVoidAsync("toast.success", result.Message ?? "Status updated!");
         }
         else
         {
-            await JS.InvokeVoidAsync("toast.error", "Failed to update.");
+            await JS.InvokeVoidAsync("toast.error", result.Message ?? "Failed to update status.");
         }
+
+        StateHasChanged();
     }
 
     private bool ShouldNavigateToSource()

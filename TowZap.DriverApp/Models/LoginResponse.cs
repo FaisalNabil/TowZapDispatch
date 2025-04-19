@@ -12,5 +12,6 @@ namespace TowZap.DriverApp.Models
         public string FullName { get; set; }
         public string Role { get; set; }
         public string CompanyName { get; set; }
+        public string UserId { get; set; }
     }
 }

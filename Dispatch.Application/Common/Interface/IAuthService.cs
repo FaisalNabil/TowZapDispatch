@@ -1,4 +1,5 @@
-﻿using Dispatch.Application.DTOs.Auth;
+﻿using Dispatch.Application.DTOs;
+using Dispatch.Application.DTOs.Auth;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +10,6 @@ namespace Dispatch.Application.Common.Interface
 {
     public interface IAuthService
     {
-        Task<LoginResponseDTO> LoginAsync(LoginRequestDTO request);
+        Task<ApiResponse<LoginResponseDTO>> LoginAsync(LoginRequestDTO request);
     }
 }

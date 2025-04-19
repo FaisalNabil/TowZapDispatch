@@ -1,48 +1,70 @@
 ﻿using System.Collections.ObjectModel;
-using System.Threading.Tasks;
 using TowZap.DriverApp.Models;
 using TowZap.DriverApp.Services;
 using TowZap.DriverApp.Constants;
 using TowZap.DriverApp.Helper;
 using TowZap.DriverApp.Enums;
 using TowZap.DriverApp.Models.DTOs;
+using TowZap.DriverApp.Views;
 
 namespace TowZap.DriverApp.ViewModels
 {
-    public class ActivityViewModel : BaseViewModel
+    public class ActivityViewModel : BaseViewModel, IInitializable
     {
+        #region Fields
+
         private readonly JobService _jobService;
         private readonly SessionManager _session;
 
+        private GroupingOption _selectedGrouping = GroupingOption.Date;
+
+        #endregion
+
+        #region Constructor
+
+        public ActivityViewModel(JobService jobService, SessionManager session)
+        {
+            _jobService = jobService;
+            _session = session;
+        }
+
+        #endregion
+
+        #region Properties
+
         public ObservableCollection<JobResponse> RecentJobs { get; set; } = new();
+        public ObservableCollection<GroupedJobsDTO> GroupedJobs { get; set; } = new();
 
         public bool IsLoading { get; set; }
         public bool HasJobs => RecentJobs.Any();
 
-        private GroupingOption _selectedGrouping = GroupingOption.Date;
         public GroupingOption SelectedGrouping
         {
             get => _selectedGrouping;
             set
             {
                 if (SetProperty(ref _selectedGrouping, value))
-                    GroupJobs(); // regroup when changed
+                    GroupJobs(); // regroup on change
             }
         }
+
         public List<GroupingOption> GroupingOptions { get; } = Enum
             .GetValues(typeof(GroupingOption))
             .Cast<GroupingOption>()
             .ToList();
-        public ObservableCollection<GroupedJobsDTO> GroupedJobs { get; set; } = new();
 
+        #endregion
 
-        public ActivityViewModel(JobService jobService, SessionManager session)
+        #region Initialization
+
+        public async Task InitializeAsync()
         {
-            _jobService = jobService;
-            _session = session;
-
-            _ = LoadJobsAsync();
+            await LoadJobsAsync();
         }
+
+        #endregion
+
+        #region Job Loading & Grouping
 
         private async Task LoadJobsAsync()
         {
@@ -66,12 +88,14 @@ namespace TowZap.DriverApp.ViewModels
             {
                 RecentJobs.Add(job);
             }
+
             GroupJobs();
 
             IsLoading = false;
             OnPropertyChanged(nameof(IsLoading));
             OnPropertyChanged(nameof(HasJobs));
         }
+
         private void GroupJobs()
         {
             GroupedJobs.Clear();
@@ -92,6 +116,7 @@ namespace TowZap.DriverApp.ViewModels
                 });
             }
         }
-    }
 
+        #endregion
+    }
 }

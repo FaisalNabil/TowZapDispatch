@@ -16,7 +16,7 @@ namespace Dispatch.Application.Common.Interface
         Task<List<JobResponseDTO>> GetJobsForCompanyAsync(Guid companyId);
         Task<JobResponseDTO?> GetJobByIdAsync(Guid id);
         Task<Guid> CreateJobAsync(CreateJobRequestDTO dto, string dispatcherId, Guid companyId);
-        Task<bool> UpdateJobStatusAsync(Guid jobId, JobStatus status);
+        Task<JobStatusUpdateResultDTO> UpdateJobStatusAsync(Guid jobId, JobStatus newStatus);
         Task<bool> AssignDriverAsync(Guid jobId, string driverUserId);
         Task<bool> DeleteJobAsync(Guid jobId);
 

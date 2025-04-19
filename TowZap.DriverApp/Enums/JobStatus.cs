@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,12 +9,28 @@ namespace TowZap.DriverApp.Enums
 {
     public enum JobStatus
     {
-        Pending,        // Dispatcher just created it
-        Assigned,       // Driver assigned
-        EnRoute,        // Driver on the way
-        Arrived,        // Driver arrived at pickup
-        Towing,         // Vehicle is being towed to destination
-        Completed,      // Job completed and verified
-        Cancelled
+        [Description("Job Created")]
+        Pending,
+
+        [Description("Driver Assigned")]
+        Assigned,
+
+        [Description("Driver En Route")]
+        EnRoute,
+
+        [Description("Driver Arrived")]
+        Arrived,
+
+        [Description("Towing in Progress")]
+        Towing,
+
+        [Description("Job Completed")]
+        Completed,
+
+        [Description("Cancelled by Dispatcher")]
+        Cancelled,
+
+        [Description("Declined by Driver")]
+        Declined
     }
 }

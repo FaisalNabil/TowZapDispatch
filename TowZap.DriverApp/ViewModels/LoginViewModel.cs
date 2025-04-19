@@ -32,6 +32,11 @@ namespace TowZap.DriverApp.ViewModels
             get => _password;
             set { _password = value; OnPropertyChanged(); }
         }
+        public bool IsPasswordHidden { get; set; } = true;
+
+        public string PasswordToggleIcon => IsPasswordHidden ? "eye.png" : "eye_off.png";
+
+        public ICommand TogglePasswordVisibilityCommand { get; }
 
         public ICommand LoginCommand { get; }
 
@@ -39,7 +44,13 @@ namespace TowZap.DriverApp.ViewModels
         {
             _authService = authService;
             _session = sessionManager;
+
+            // ✅ For testing
+            Email = "driver@tousif.com";
+            Password = "Password@1";
+
             LoginCommand = new Command(async () => await LoginAsync());
+            TogglePasswordVisibilityCommand = new Command(TogglePasswordVisibility);
         }
 
         private async Task LoginAsync()
@@ -57,9 +68,12 @@ namespace TowZap.DriverApp.ViewModels
                     await _session.SaveSessionAsync(result);
 
                     // Navigate to dashboard only if Shell is ready
-                    if (Shell.Current != null) 
-                        //Shell.Current.CurrentItem = Shell.Current.Items[0];
-                        await Shell.Current.GoToAsync("//DashboardPage");
+                    if (Shell.Current != null)
+                    {
+                        Application.Current.MainPage = new MainShell(); 
+                        Shell.Current.CurrentItem = Shell.Current.Items.First(); // Switch tab
+
+                    }
                     else
                         await DialogHelper.Show("Error", "Navigation failed: Shell not ready.");
                 }
@@ -72,6 +86,13 @@ namespace TowZap.DriverApp.ViewModels
             {
                 await DialogHelper.Show("Unexpected Error", ex.Message);
             }
+        }
+
+        private void TogglePasswordVisibility()
+        {
+            IsPasswordHidden = !IsPasswordHidden;
+            OnPropertyChanged(nameof(IsPasswordHidden));
+            OnPropertyChanged(nameof(PasswordToggleIcon));
         }
 
 

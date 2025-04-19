@@ -1,5 +1,5 @@
 {
-  "ApiBaseUrl": "http://192.168.0.103:5047/api/",
+  "ApiBaseUrl": "https://api.thetowawayzone.com/api/",
 
   "ApiBaseUrlEmulator": "https://10.0.2.2:7194/api/",
 
@@ -7,5 +7,7 @@
 
   "ApiBaseUrlLocal": "https://localhost:7194/api/",
 
-  "ApiBaseUrlProduction": "https://api.thetowawayzone.com/api/"
+  "ApiBaseUrlProduction": "https://api.thetowawayzone.com/api/",
+
+  "SignalRHubUrl": "https://api.thetowawayzone.com/"
 }

@@ -1,26 +1,33 @@
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:vm="clr-namespace:TowZap.DriverApp.ViewModels"
-             x:Class="TowZap.DriverApp.Views.SettingsPage"
-             Title="Settings"
-             x:DataType="vm:SettingsViewModel">
+﻿<views:BaseShellPage
+    x:Class="TowZap.DriverApp.Views.SettingsPage"
+    x:TypeArguments="viewmodels:SettingsViewModel"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:views="clr-namespace:TowZap.DriverApp.Views"
+    xmlns:viewmodels="clr-namespace:TowZap.DriverApp.ViewModels"
+    Title="Settings">
+    
+    <Grid>
+        <!-- 🔃 Main Scroll Content -->
+        <ScrollView>
+            <VerticalStackLayout Padding="20" Spacing="20">
+                <Label Text="Profile" FontSize="24" FontAttributes="Bold" />
 
-    <VerticalStackLayout Padding="20" Spacing="20">
-        <Label Text="Profile" FontSize="24" FontAttributes="Bold" />
+                <Label Text="Name" />
+                <Label Text="{Binding FullName}" FontSize="18" />
 
-        <Label Text="Name" />
-        <Label Text="{Binding FullName}" FontSize="18" />
+                <Label Text="Company" />
+                <Label Text="{Binding CompanyName}" FontSize="18" />
 
-        <Label Text="Company" />
-        <Label Text="{Binding CompanyName}" FontSize="18" />
+                <Label Text="Role" />
+                <Label Text="{Binding Role}" FontSize="18" />
 
-        <Label Text="Role" />
-        <Label Text="{Binding Role}" FontSize="18" />
-
-        <Button Text="Logout" BackgroundColor="DarkRed" TextColor="White"
+                <Button Text="Logout" BackgroundColor="DarkRed" TextColor="White"
                 Command="{Binding LogoutCommand}" />
 
-        <Button Text="Delete Account" BackgroundColor="Black" TextColor="White"
+                <Button Text="Delete Account" BackgroundColor="Black" TextColor="White"
                 Command="{Binding DeleteAccountCommand}" />
-    </VerticalStackLayout>
-</ContentPage>
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</views:BaseShellPage>

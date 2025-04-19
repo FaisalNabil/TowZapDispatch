@@ -1,4 +1,5 @@
 ﻿using Dispatch.Application.Common.Interface;
+using Dispatch.Application.DTOs;
 using Dispatch.Application.DTOs.Registration;
 using Dispatch.Application.DTOs.User;
 using Dispatch.Domain.Constants;
@@ -92,10 +93,15 @@ namespace Dispatch.API.Controllers
             };
 
             var result = await _userService.RegisterAsync(user, dto.Password, dto.Role, companyId);
-            if (!result.Succeeded)
-                return BadRequest(result.Errors);
 
-            return Ok("User created successfully.");
+            if (!result.Succeeded)
+            {
+                var errorMessages = result.Errors.Select(e => e.Description);
+                var combinedMessage = string.Join(" | ", errorMessages);
+                return BadRequest(ApiResponse<string>.Fail(combinedMessage));
+            }
+
+            return Ok(ApiResponse<string>.Success("User created successfully."));
         }
 
         [HttpGet("debug-claims")]

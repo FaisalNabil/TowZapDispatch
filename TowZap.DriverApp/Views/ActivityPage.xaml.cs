@@ -3,15 +3,14 @@ using TowZap.DriverApp.ViewModels;
 
 namespace TowZap.DriverApp.Views;
 
-public partial class ActivityPage : ContentPage
+public partial class ActivityPage : BaseShellPage<ActivityViewModel>
 {
-	public ActivityPage()
-	{
-		InitializeComponent();
-
-        var jobService = ServiceHelper.GetService<JobService>();
-        var sessionManager = ServiceHelper.GetService<SessionManager>();
-
-        BindingContext = new ActivityViewModel(jobService, sessionManager);
+    public ActivityPage()
+        : base(new ActivityViewModel(
+            ServiceHelper.GetService<JobService>(),
+            ServiceHelper.GetService<SessionManager>()))
+    {
+        InitializeComponent();
+        Title = "Activity";
     }
 }

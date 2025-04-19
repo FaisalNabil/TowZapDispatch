@@ -1,18 +1,27 @@
-namespace TowZap.DriverApp.Views;
-
+using Microsoft.Maui.Devices.Sensors;
 using TowZap.DriverApp.Services;
 using TowZap.DriverApp.ViewModels;
-public partial class DashboardPage : ContentPage
+
+namespace TowZap.DriverApp.Views;
+public partial class DashboardPage : BaseShellPage<DashboardViewModel>
 {
-	public DashboardPage()
-	{
-		InitializeComponent();
-
-        var jobService = ServiceHelper.GetService<JobService>();
-        var geocodingService = ServiceHelper.GetService<GeocodingService>();
-        var signalRService = ServiceHelper.GetService<SignalRClientService>();
-        var sessionManager = ServiceHelper.GetService<SessionManager>();
-
-        BindingContext = new DashboardViewModel(jobService, signalRService, geocodingService, sessionManager);
+    public DashboardPage() : base(new DashboardViewModel(
+        ServiceHelper.GetService<JobService>(),
+        ServiceHelper.GetService<SignalRClientService>(),
+        ServiceHelper.GetService<GeocodingService>(),
+        ServiceHelper.GetService<SessionManager>()))
+    {
+        InitializeComponent();
+        Title = "Dashboard";
     }
+    private void OnJobAccepted(object sender, Guid jobId)
+    {
+        ViewModel.AcceptJobCommand.Execute(null); 
+    }
+
+    private void OnJobRejected(object sender, Guid jobId)
+    {
+        ViewModel.DeclineJobCommand.Execute(null);
+    }
+
 }

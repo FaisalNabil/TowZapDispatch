@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Blazored.LocalStorage;
 using Dispatch.Application.DTOs.Registration;
 using Dispatch.Application.DTOs.User;
+using Dispatch.Application.DTOs;
 
 namespace TowZap.Client.Client.Service
 {
@@ -28,10 +29,16 @@ namespace TowZap.Client.Client.Service
         {
             var response = await _http.PostAsJsonAsync("api/auth/login", request);
 
-            if (!response.IsSuccessStatusCode)
-                throw new Exception("Invalid email or password");
+            // Read and parse the full ApiResponse<LoginResponseDTO>
+            var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<LoginResponseDTO>>();
 
-            var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponseDTO>();
+            if (apiResponse == null || !apiResponse.IsSuccess)
+                throw new Exception(apiResponse?.Message ?? "Login failed");
+
+            var loginResponse = apiResponse.Data;
+
+            if (loginResponse == null)
+                throw new Exception("Invalid response from server");
 
             await _localStorage.SetItemAsync("authToken", loginResponse.Token);
             ((CustomAuthStateProvider)_authStateProvider).NotifyUserAuthentication(loginResponse.Token);

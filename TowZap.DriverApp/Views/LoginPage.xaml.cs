@@ -9,5 +9,12 @@ namespace TowZap.DriverApp.Views
             InitializeComponent();
             BindingContext = vm;
         }
+        protected override void OnAppearing()
+        {
+            base.OnAppearing();
+            Shell.SetNavBarIsVisible(this, false);
+            Shell.SetTabBarIsVisible(this, false);
+        }
+
     }
 }

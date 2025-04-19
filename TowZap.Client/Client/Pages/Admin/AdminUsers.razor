@@ -163,15 +163,17 @@
     private async Task CreateUserAsync()
     {
         var result = await UserService.CreateUserByAdminAsync(newUser);
-        if (result)
+
+        if (result?.IsSuccess == true)
         {
-            await JS.InvokeVoidAsync("toastr.success", "User created!");
+            await JS.InvokeVoidAsync("toastr.success", result.Message ?? "User created!");
             users = await UserService.GetUsersByCompanyAsync();
             HideCreateUserModal();
         }
         else
         {
-            await JS.InvokeVoidAsync("toastr.error", "Creation failed.");
+            var message = result?.Message ?? "User creation failed.";
+            await JS.InvokeVoidAsync("toastr.error", message);
         }
     }
 }

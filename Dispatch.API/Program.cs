@@ -34,6 +34,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = config["Jwt:Issuer"],
             ValidAudience = config["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["Jwt:Key"]))
+        }; 
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+
+                // If the request is for our SignalR hub
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/jobUpdates"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -52,11 +68,6 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowCredentials(); // Optional: if you're using cookies or auth headers
     });
-});
-
-builder.WebHost.ConfigureKestrel(serverOptions =>
-{
-    serverOptions.ListenAnyIP(5047); // ✅ open HTTP port to all IPs
 });
 
 
@@ -89,12 +100,7 @@ app.UseMiddleware<ExpiryMiddleware>();
 app.UseCors("AllowTowZapClient");
 
 
-#if DEBUG
-#else
-
 app.UseHttpsRedirection();
-
-#endif
 
 app.UseAuthentication();
 app.UseAuthorization();

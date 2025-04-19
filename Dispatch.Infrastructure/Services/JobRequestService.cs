@@ -99,24 +99,32 @@ namespace Dispatch.Infrastructure.Services
             return job.Id;
         }
 
-        public async Task<bool> UpdateJobStatusAsync(Guid jobId, JobStatus status)
+        public async Task<JobStatusUpdateResultDTO> UpdateJobStatusAsync(Guid jobId, JobStatus newStatus)
         {
             var job = await _context.JobRequests.FindAsync(jobId);
-            if (job == null) return false;
+            if (job == null)
+                return new JobStatusUpdateResultDTO { Success = false, Message = "Job not found." };
 
-            job.Status = status;
+            if (job.Status == JobStatus.Cancelled || job.Status == JobStatus.Declined || job.Status == JobStatus.Completed)
+                return new JobStatusUpdateResultDTO { Success = false, Message = $"Cannot update status. Job is already {job.Status}." };
 
-            var userId = "system"; // default fallback
+            if (job.Status == newStatus)
+                return new JobStatusUpdateResultDTO { Success = false, Message = "Job already has this status." };
+
+            job.Status = newStatus;
+
+            var userId = "system"; // fallback
             if (_httpContextAccessor.HttpContext?.User.Identity?.IsAuthenticated ?? false)
             {
                 userId = _httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
             }
 
-            await AddStatusHistoryAsync(jobId, userId, status);
-
+            await AddStatusHistoryAsync(jobId, userId, newStatus);
             await _context.SaveChangesAsync();
-            return true;
+
+            return new JobStatusUpdateResultDTO { Success = true, Message = "Status updated successfully." };
         }
+
 
         private async Task AddStatusHistoryAsync(Guid jobId, string userId, JobStatus status, string? note = null)
         {

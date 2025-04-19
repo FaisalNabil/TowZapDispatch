@@ -1,4 +1,5 @@
 ﻿using Blazored.LocalStorage;
+using Dispatch.Application.DTOs;
 using Dispatch.Application.DTOs.Admin;
 using Dispatch.Application.DTOs.Registration;
 using Dispatch.Application.DTOs.User;
@@ -27,12 +28,15 @@ namespace TowZap.Client.Client.Service
             var response = await _http.PostAsync($"api/users/promote-to-dispatcher?userId={userId}", null);
             return response.IsSuccessStatusCode;
         }
-        public async Task<bool> CreateUserByAdminAsync(AdminCreateUserDTO dto)
+        public async Task<ApiResponse<string>?> CreateUserByAdminAsync(AdminCreateUserDTO dto)
         {
             await AddBearerTokenAsync();
             var response = await _http.PostAsJsonAsync("api/users/admin-create-user", dto);
-            return response.IsSuccessStatusCode;
+
+            var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<string>>();
+            return apiResponse;
         }
+
         public async Task<List<DriverDropdownDTO>> GetDriversInCompanyAsync()
         {
             await AddBearerTokenAsync();

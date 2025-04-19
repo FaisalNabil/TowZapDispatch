@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 using Dispatch.Domain.Constants;
+using Dispatch.Application.DTOs;
 
 namespace Dispatch.API.Controllers
 {
@@ -69,7 +70,7 @@ namespace Dispatch.API.Controllers
         }
 
         [HttpGet("{id:guid}")]
-        [Authorize(Roles = $"{UserRoles.Dispatcher},{UserRoles.CompanyAdministrator}")]
+        [Authorize(Roles = $"{UserRoles.Driver},{UserRoles.Dispatcher},{UserRoles.CompanyAdministrator}")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var job = await _jobService.GetJobByIdAsync(id);
@@ -93,7 +94,10 @@ namespace Dispatch.API.Controllers
 
             var jobId = await _jobService.CreateJobAsync(dto, dispatcherId, Guid.Parse(companyId));
 
-            await _hubContext.Clients.Group(companyId).SendAsync("JobCreated", jobId);
+            //await _hubContext.Clients.Group(companyId).SendAsync("JobCreated", jobId);
+            await _hubContext.Clients.Group($"user:{dto.AssignedDriverId}")
+                .SendAsync("JobCreated", jobId);
+
             return Ok(new { jobId, Message = "Job created and driver assigned." });
         }
 
@@ -101,13 +105,15 @@ namespace Dispatch.API.Controllers
         [Authorize(Roles = $"{UserRoles.Dispatcher},{UserRoles.Driver}")]
         public async Task<IActionResult> UpdateStatus(Guid jobId, [FromBody] JobStatus newStatus)
         {
-            var updated = await _jobService.UpdateJobStatusAsync(jobId, newStatus);
-            if (!updated) return NotFound("Job not found.");
+            var result = await _jobService.UpdateJobStatusAsync(jobId, newStatus);
+
+            if (!result.Success)
+                return BadRequest(ApiResponse<string>.Fail(result.Message));
 
             var job = await _jobService.GetJobByIdAsync(jobId);
             await _hubContext.Clients.Group(job.CompanyId.ToString()).SendAsync("JobStatusUpdated", jobId, newStatus.ToString());
 
-            return Ok("Status updated.");
+            return Ok(ApiResponse<string>.Success(result.Message));
         }
 
         [HttpPost("{jobId}/assign")]

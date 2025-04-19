@@ -30,7 +30,9 @@ namespace TowZap.Client.Client.Service.Http
 
             var response = await base.SendAsync(request, cancellationToken);
 
-            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            var isLoginEndpoint = request.RequestUri?.AbsolutePath.Contains("auth/login") ?? false;
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized && !isLoginEndpoint)
             {
                 await _localStorage.RemoveItemAsync("authToken");
                 _navigation.NavigateTo("/login", true); // force redirect

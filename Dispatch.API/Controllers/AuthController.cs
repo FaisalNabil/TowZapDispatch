@@ -27,40 +27,11 @@ namespace Dispatch.API.Controllers
         public async Task<IActionResult> Login([FromBody] LoginRequestDTO request)
         {
             var response = await _authService.LoginAsync(request);
-            if (response == null)
-                return Unauthorized("Invalid email or password");
+
+            if (!response.IsSuccess)
+                return Unauthorized(response); 
 
             return Ok(response);
-        }
-
-        [HttpPost("request-driver")]
-        public async Task<IActionResult> RequestDriver([FromBody] DriverRegistrationRequestDTO dto)
-        {
-            var result = await _userService.RegisterAsync(dto.ToUser(), dto.Password, "PendingDriver");
-            if (!result.Succeeded)
-                return BadRequest(result.Errors);
-
-            return Ok("Driver registration request submitted.");
-        }
-
-        [HttpPost("register-dispatcher")]
-        public async Task<IActionResult> RegisterDispatcher([FromBody] DispatcherRegistrationDTO dto)
-        {
-            var result = await _userService.RegisterAsync(dto.ToUser(), dto.Password, "Dispatcher");
-            if (!result.Succeeded)
-                return BadRequest(result.Errors);
-
-            return Ok("Dispatcher registered successfully.");
-        }
-
-        [HttpPost("register-guest")]
-        public async Task<IActionResult> RegisterGuest([FromBody] GuestRegistrationDTO dto)
-        {
-            var result = await _userService.RegisterAsync(dto.ToUser(), dto.Password, "GuestUser");
-            if (!result.Succeeded)
-                return BadRequest(result.Errors);
-
-            return Ok("Guest user registered.");
         }
 
         [Authorize(Roles = UserRoles.CompanyAdministrator + "," + UserRoles.Dispatcher)]

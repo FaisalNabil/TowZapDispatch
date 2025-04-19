@@ -1,0 +1,16 @@
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="TowZap.DriverApp.Controls.JobPopupView"
+             x:Name="Root">
+
+    <Grid BackgroundColor="#FFFFE0" Padding="15" IsVisible="{Binding IsVisible, Source={x:Reference Root}}">
+        <VerticalStackLayout>
+            <Label Text="New Job Assigned!" FontAttributes="Bold" />
+            <Label Text="{Binding JobSummary}" />
+            <StackLayout Orientation="Horizontal" HorizontalOptions="Center" Spacing="10">
+                <Button Text="Accept" Clicked="OnAcceptClicked"/>
+                <Button Text="Reject" BackgroundColor="Tomato" Clicked="OnRejectClicked"/>
+            </StackLayout>
+        </VerticalStackLayout>
+    </Grid>
+</ContentView>

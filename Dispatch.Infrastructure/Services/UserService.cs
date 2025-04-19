@@ -27,8 +27,14 @@ namespace Dispatch.Infrastructure.Services
 
         public async Task<IdentityResult> RegisterAsync(ApplicationUser user, string password, string role, Guid? companyId = null)
         {
-            if (string.IsNullOrWhiteSpace(user.Id))
-                user.Id = Guid.NewGuid().ToString();
+            var existingUser = await _context.Users
+                                            .AsNoTracking()
+                                            .FirstOrDefaultAsync(u => u.Email == user.Email);
+
+            if (existingUser != null)
+            {
+                return IdentityResult.Failed(new IdentityError { Description = $"A user with email '{user.Email}' already exists." });
+            }
 
             // Hash the password
             user.PasswordHash = _passwordHasher.HashPassword(user, password);

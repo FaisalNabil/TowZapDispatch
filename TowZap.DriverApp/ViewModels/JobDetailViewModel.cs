@@ -18,14 +18,16 @@ namespace TowZap.DriverApp.ViewModels
         private readonly JobService _jobService;
         private readonly GeocodingService _geocodingService;
         private readonly SignalRClientService _signalRService;
+        private readonly SessionManager _session;
 
-        public JobDetailViewModel(JobService jobService, GeocodingService geocodingService, SignalRClientService signalRService)
+        public JobDetailViewModel(JobService jobService, GeocodingService geocodingService, SignalRClientService signalRService, SessionManager session)
         {
             _jobService = jobService;
             _geocodingService = geocodingService;
             _signalRService = signalRService;
             StatusOptions = new List<MetaEnumDTO>();
             UpdateStatusCommand = new Command(async () => await UpdateStatusAsync());
+            _session = session;
         }
 
         public Guid JobId { get; set; }
@@ -111,10 +113,11 @@ namespace TowZap.DriverApp.ViewModels
         #region SignalR
         public async Task ConnectSignalR(Guid jobId)
         {
-            var token = Preferences.Get("auth_token", "");
-            var hubUrl = $"{ConfigurationService.Get("ApiBaseUrl")}/hubs/jobUpdates";
+            var token = _session.Token;
+            var hubUrl = $"{ConfigurationService.Get("SignalRHubUrl")}hubs/jobUpdates";
 
-            await _signalRService.InitializeAsync(hubUrl, token);
+
+            await _signalRService.InitializeAsync(hubUrl, token, jobId.ToString());
 
             _signalRService.On<string>("JobStatusUpdated", async (idStr) =>
             {

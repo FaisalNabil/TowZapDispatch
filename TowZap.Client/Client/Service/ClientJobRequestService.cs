@@ -1,4 +1,5 @@
 ﻿using Blazored.LocalStorage;
+using Dispatch.Application.DTOs;
 using Dispatch.Application.DTOs.Request;
 using Dispatch.Domain.Enums;
 using System.Net.Http.Json;
@@ -73,12 +74,17 @@ namespace TowZap.Client.Client.Service
             return response.IsSuccessStatusCode;
         }
 
-        public async Task<bool> UpdateJobStatusAsync(Guid jobId, JobStatus newStatus)
+        public async Task<ApiResponse<string>> UpdateJobStatusAsync(Guid jobId, JobStatus newStatus)
         {
             await AddBearerTokenAsync();
+
             var response = await _http.PutAsJsonAsync($"api/JobRequests/{jobId}/status", newStatus);
-            return response.IsSuccessStatusCode;
+
+            var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<string>>();
+
+            return apiResponse ?? ApiResponse<string>.Fail("Unexpected error");
         }
+
         public async Task<List<MetaEnumDTO>> GetJobStatusesAsync()
         {
             await AddBearerTokenAsync();

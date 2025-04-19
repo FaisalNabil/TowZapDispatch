@@ -10,6 +10,7 @@
 		>
 		<meta-data android:name="plugin.localnotification.default_icon" android:resource="@mipmap/appicon" />
 		<meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao" />
+		<receiver android:name=".NotificationActionReceiver" android:exported="true" />
 	</application>
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 	<uses-permission android:name="android.permission.INTERNET" />

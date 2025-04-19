@@ -8,6 +8,7 @@ namespace TowZap.DriverApp
     [JsonSerializable(typeof(LoginRequest))]
     [JsonSerializable(typeof(LoginResponse))]
     [JsonSerializable(typeof(JobResponse))]
+    [JsonSerializable(typeof(ApiResponse<LoginResponse>))]
     public partial class AppJsonContext : JsonSerializerContext
     {
     }

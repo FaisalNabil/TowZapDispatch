@@ -8,32 +8,53 @@ using TowZap.DriverApp.Services;
 using TowZap.DriverApp.Enums;
 using TowZap.DriverApp.Helper;
 using TowZap.DriverApp.Constants;
+using TowZap.DriverApp.Views;
 
 namespace TowZap.DriverApp.ViewModels
 {
-    public class DashboardViewModel : BaseViewModel
+    public class DashboardViewModel : BaseViewModel, IInitializable
     {
+        #region Fields
+
         private readonly JobService _jobService;
         private readonly GeocodingService _geocoding;
         private readonly SignalRClientService _signalRService;
         private readonly SessionManager _session;
 
-        public DashboardViewModel(JobService jobService, SignalRClientService signalRService, GeocodingService geocoding, SessionManager session)
+        private JobResponse _currentJob;
+        private JobResponse _incomingJob;
+        private string _fromAddress = "Loading...";
+        private string _toAddress = "Loading...";
+        private bool _isJobPopupVisible; 
+        private bool _signalRInitialized = false;
+        private bool _isProcessing = false;
+
+        #endregion
+
+        #region Constructor
+
+        public DashboardViewModel(
+            JobService jobService,
+            SignalRClientService signalRService,
+            GeocodingService geocoding,
+            SessionManager session)
         {
             _jobService = jobService;
             _signalRService = signalRService;
             _geocoding = geocoding;
             _session = session;
-            _ = InitializeAsync();
 
             ViewJobCommand = new Command(async () => await ViewJobDetails());
             OpenSettingsCommand = new Command(async () => await OpenSettings());
             AcceptJobCommand = new Command(async () => await AcceptJobAsync());
             DeclineJobCommand = new Command(async () => await DeclineJobAsync());
-
+            //TestCommand = new Command(TestNotification);
         }
 
+        #endregion
+
         #region Properties
+
         public string FullName { get; set; }
         public string CompanyName { get; set; }
         public string Role { get; set; }
@@ -42,7 +63,6 @@ namespace TowZap.DriverApp.ViewModels
         public bool IsDispatcher => Role == UserRoles.Dispatcher;
         public bool IsCompanyAdmin => Role == UserRoles.CompanyAdministrator;
 
-        private JobResponse _currentJob;
         public JobResponse CurrentJob
         {
             get => _currentJob;
@@ -56,21 +76,18 @@ namespace TowZap.DriverApp.ViewModels
             }
         }
 
-        private string _fromAddress = "Loading...";
         public string FromAddress
         {
             get => _fromAddress;
             set => SetProperty(ref _fromAddress, value);
         }
 
-        private string _toAddress = "Loading...";
         public string ToAddress
         {
             get => _toAddress;
             set => SetProperty(ref _toAddress, value);
         }
 
-        private bool _isJobPopupVisible;
         public bool IsJobPopupVisible
         {
             get => _isJobPopupVisible;
@@ -80,8 +97,6 @@ namespace TowZap.DriverApp.ViewModels
         public bool HasActiveJob => CurrentJob != null && CurrentJob.Status != JobStatus.Completed;
         public bool NoActiveJob => !HasActiveJob;
 
-        private Guid _incomingJobId;
-
         #endregion
 
         #region Commands
@@ -90,20 +105,41 @@ namespace TowZap.DriverApp.ViewModels
         public ICommand OpenSettingsCommand { get; }
         public ICommand AcceptJobCommand { get; }
         public ICommand DeclineJobCommand { get; }
-
+        //public ICommand TestCommand { get; }
         #endregion
 
-        #region Core Logic
-        private async Task InitializeAsync()
+        #region Initialization
+
+        //private string _jobSummary;
+        //public string JobSummary
+        //{
+        //    get => _jobSummary;
+        //    set => SetProperty(ref _jobSummary, value);
+        //}
+        //private void TestNotification()
+        //{
+        //    JobSummary = "Unit #123, Toyota Corolla, Abandoned";
+        //    IsJobPopupVisible = true;
+
+        //    TriggerLocalNotification();
+        //}
+        public async Task InitializeAsync()
         {
+            await _session.InitializeAsync();
+
+            if (!_session.IsLoggedIn || string.IsNullOrEmpty(_session.Token))
+            {
+                await Shell.Current.GoToAsync("LoginPage");
+                return;
+            }
+
             await LoadUserInfo();
             await LoadCurrentJob();
             await ConnectSignalR();
         }
+
         private async Task LoadUserInfo()
         {
-            await _session.InitializeAsync();
-
             FullName = _session.FullName ?? "User";
             CompanyName = _session.CompanyName ?? "Company";
             Role = _session.Role ?? "Unknown";
@@ -130,6 +166,10 @@ namespace TowZap.DriverApp.ViewModels
             ToAddress = await _geocoding.ReverseGeocodeAsync(job.ToLatitude, job.ToLongitude);
         }
 
+        #endregion
+
+        #region Navigation
+
         private async Task ViewJobDetails()
         {
             if (CurrentJob != null)
@@ -143,56 +183,86 @@ namespace TowZap.DriverApp.ViewModels
 
         #endregion
 
-        #region SignalR
+        #region SignalR Integration
+
         private async Task ConnectSignalR()
         {
-            var token = Preferences.Get("auth_token", "");
-            var hubUrl = $"{ConfigurationService.Get("ApiBaseUrl")}/hubs/jobUpdates";
+            if (_signalRInitialized) return;
+            _signalRInitialized = true;
 
+            var token = _session.Token;
+            var hubUrl = $"{ConfigurationService.Get("SignalRHubUrl")}hubs/jobUpdates";
 
-            await _signalRService.InitializeAsync(hubUrl, token);
+            await _signalRService.InitializeAsync(hubUrl, token, CurrentJob?.Id.ToString() ?? Guid.Empty.ToString());
 
             _signalRService.On<Guid>("ReceiveJobUpdate", async (jobId) =>
             {
                 var job = await _jobService.GetJobByIdAsync(jobId);
                 if (job != null)
                 {
-                    CurrentJob = job;
+                    _incomingJob = job;
                     await LoadAddressesAsync(job);
                     IsJobPopupVisible = true;
                     TriggerLocalNotification();
-
                     OnPropertyChanged(nameof(HasActiveJob));
                     OnPropertyChanged(nameof(NoActiveJob));
                 }
             });
+        }
 
+        public void ReceiveJobNotification(JobResponse job)
+        {
+            _incomingJob = job;
+            IsJobPopupVisible = true;
+
+            TriggerLocalNotification();
+            _ = AutoHandleJobPopupAsync(job);
+        }
+
+        private async Task AutoHandleJobPopupAsync(JobResponse job)
+        {
+            await Task.Delay(60_000);
+            IsJobPopupVisible = false;
+
+            await Task.Delay(120_000);
+            if (job.Status == JobStatus.Assigned)
+            {
+                await _jobService.UpdateJobStatusAsync(job.Id, JobStatus.Cancelled);
+                OnPropertyChanged(nameof(HasActiveJob));
+                OnPropertyChanged(nameof(NoActiveJob));
+            }
         }
 
         #endregion
 
-        #region Accept/Reject
+        #region Job Accept / Decline Actions
 
         private async Task AcceptJobAsync()
         {
-            if (CurrentJob != null)
-            {
-                await _jobService.UpdateJobStatusAsync(CurrentJob.Id, JobStatus.EnRoute);
-                IsJobPopupVisible = false;
-                await LoadCurrentJob(); // refresh job details
-            }
+            if (_incomingJob == null) return;
+
+            await _jobService.UpdateJobStatusAsync(_incomingJob.Id, JobStatus.Assigned);
+            CurrentJob = _incomingJob;
+            _incomingJob = null;
+
+            IsJobPopupVisible = false;
+            await LoadCurrentJob(); // optional
+            OnPropertyChanged(nameof(HasActiveJob));
+            OnPropertyChanged(nameof(NoActiveJob));
         }
+
 
         private async Task DeclineJobAsync()
         {
-            if (CurrentJob != null)
+            if (_incomingJob != null)
             {
-                await _jobService.UpdateJobStatusAsync(CurrentJob.Id, JobStatus.Cancelled);
+                await _jobService.UpdateJobStatusAsync(_incomingJob.Id, JobStatus.Declined);
+                _incomingJob = null;
                 IsJobPopupVisible = false;
-                CurrentJob = null;
-                OnPropertyChanged(nameof(HasActiveJob));
-                OnPropertyChanged(nameof(NoActiveJob));
             }
+
+            OnPropertyChanged(nameof(HasActiveJob));
+            OnPropertyChanged(nameof(NoActiveJob));
         }
 
         private async Task TriggerLocalNotification()
@@ -200,7 +270,9 @@ namespace TowZap.DriverApp.ViewModels
             try
             {
                 await PermissionHelper.RequestNotificationPermissionAsync();
-                NotificationHelper.Show("New Tow Job Assigned", "Tap to accept or decline the job.");
+                NotificationHelper.Show("New Tow Job Assigned", "Tap to accept or decline the job.",
+    NotificationType.JobWithActions,
+    _incomingJob.Id);
             }
             catch (Exception ex)
             {

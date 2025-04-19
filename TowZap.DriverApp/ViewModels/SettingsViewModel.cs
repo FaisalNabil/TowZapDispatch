@@ -35,8 +35,7 @@ namespace TowZap.DriverApp.ViewModels
 
         private async Task Logout()
         {
-            Preferences.Clear();
-            await Shell.Current.GoToAsync("LoginPage");
+            await _session.LogoutAsync();
         }
 
         private async Task DeleteAccountAsync()
@@ -51,7 +50,7 @@ namespace TowZap.DriverApp.ViewModels
                 if (result)
                 {
                     Preferences.Clear();
-                    await Shell.Current.GoToAsync("LoginPage");
+                    Application.Current.MainPage = new LoginShell();
                 }
                 else
                 {

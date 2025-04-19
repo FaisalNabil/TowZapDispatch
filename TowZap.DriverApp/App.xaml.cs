@@ -10,31 +10,34 @@ namespace TowZap.DriverApp
         public App(SessionManager sessionManager)
         {
             InitializeComponent();
-
             _session = sessionManager;
-            MainPage = new AppShell(); // always load Shell first
+
+            // Temporarily show a loading/splash page while we check session
+            MainPage = new ContentPage
+            {
+                Content = new ActivityIndicator
+                {
+                    IsRunning = true,
+                    VerticalOptions = LayoutOptions.Center,
+                    HorizontalOptions = LayoutOptions.Center
+                }
+            };
+
+            // Defer navigation until UI is ready
+            Task.Run(async () => await SetupInitialPageAsync());
         }
 
-        protected override async void OnStart()
+        private async Task SetupInitialPageAsync()
         {
             await _session.InitializeAsync();
 
-            // Redirect to login if no token
-            if (!_session.IsLoggedIn)
+            await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                await Shell.Current.GoToAsync("LoginPage");
-            }
-        }
-
-        // Optional: If you want to check on resume too
-        protected override async void OnResume()
-        {
-            await _session.InitializeAsync();
-
-            if (!_session.IsLoggedIn)
-            {
-                await Shell.Current.GoToAsync("LoginPage");
-            }
+                if (_session.IsLoggedIn)
+                    MainPage = new MainShell();
+                else
+                    MainPage = new LoginShell();
+            });
         }
     }
 }

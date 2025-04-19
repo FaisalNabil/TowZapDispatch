@@ -10,13 +10,15 @@ namespace TowZap.DriverApp.Services
     public class SignalRClientService
     {
         private HubConnection _connection;
-
+        private readonly HashSet<string> _registeredHandlers = new();
         public bool IsConnected => _connection?.State == HubConnectionState.Connected;
 
-        public async Task InitializeAsync(string hubUrl, string token)
+        public async Task InitializeAsync(string hubUrl, string token, string? jobId = null)
         {
+            var fullUrl = jobId != null ? $"{hubUrl}?jobId={jobId}" : hubUrl;
+
             _connection = new HubConnectionBuilder()
-                .WithUrl(hubUrl, options =>
+                .WithUrl(fullUrl, options =>
                 {
                     options.AccessTokenProvider = () => Task.FromResult(token);
                 })
@@ -30,16 +32,41 @@ namespace TowZap.DriverApp.Services
                 await _connection.StartAsync();
             };
 
+            _connection.Reconnected += connectionId =>
+            {
+                Console.WriteLine($"SignalR reconnected: {connectionId}");
+                return Task.CompletedTask;
+            };
+
+            _connection.Reconnecting += error =>
+            {
+                Console.WriteLine($"SignalR reconnecting: {error?.Message}");
+                return Task.CompletedTask;
+            };
+
+            Console.WriteLine($"Connecting to SignalR at: {fullUrl}");
+
             await _connection.StartAsync();
+
+            Console.WriteLine($"SignalR connected: {_connection.State}");
         }
 
         public void On<T>(string methodName, Action<T> handler)
         {
+            if (_connection == null)
+                throw new ArgumentNullException(nameof(_connection), "HubConnection is not initialized. Call InitializeAsync first.");
+
+            if (_registeredHandlers.Contains(methodName)) return;
+
             _connection.On(methodName, handler);
+            _registeredHandlers.Add(methodName);
         }
 
         public void On<T1, T2>(string methodName, Action<T1, T2> handler)
         {
+            if (_connection == null)
+                throw new ArgumentNullException(nameof(_connection), "HubConnection is not initialized. Call InitializeAsync first.");
+
             _connection.On(methodName, handler);
         }
 

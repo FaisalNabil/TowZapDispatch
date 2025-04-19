@@ -1,13 +1,15 @@
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="TowZap.DriverApp.Views.ActivityPage"
-             Title="Activity"
-             xmlns:models="clr-namespace:TowZap.DriverApp.Models"
-             xmlns:dto="clr-namespace:TowZap.DriverApp.Models.DTOs"
-             xmlns:enums="clr-namespace:TowZap.DriverApp.Enums"
-             xmlns:viewmodels="clr-namespace:TowZap.DriverApp.ViewModels"
-             xmlns:converters="clr-namespace:TowZap.DriverApp.Converters"
-             x:DataType="viewmodels:ActivityViewModel">
+<views:BaseShellPage 
+    x:Class="TowZap.DriverApp.Views.ActivityPage"
+    x:TypeArguments="viewmodels:ActivityViewModel"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:views="clr-namespace:TowZap.DriverApp.Views"
+    xmlns:models="clr-namespace:TowZap.DriverApp.Models"
+    xmlns:dto="clr-namespace:TowZap.DriverApp.Models.DTOs"
+    xmlns:enums="clr-namespace:TowZap.DriverApp.Enums"
+    xmlns:viewmodels="clr-namespace:TowZap.DriverApp.ViewModels"
+    xmlns:converters="clr-namespace:TowZap.DriverApp.Converters"
+    Title="Activity">
 
     <ContentPage.Resources>
         <ResourceDictionary>
@@ -59,4 +61,4 @@
 
         </VerticalStackLayout>
     </ScrollView>
-</ContentPage>
+</views:BaseShellPage>

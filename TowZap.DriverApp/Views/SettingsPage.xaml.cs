@@ -3,15 +3,13 @@ using TowZap.DriverApp.ViewModels;
 
 namespace TowZap.DriverApp.Views;
 
-public partial class SettingsPage : ContentPage
+public partial class SettingsPage : BaseShellPage<SettingsViewModel>
 {
-	public SettingsPage()
-	{
-		InitializeComponent();
-
-        var userService = ServiceHelper.GetService<UserService>();
-        var sessionManager = ServiceHelper.GetService<SessionManager>();
-
-        BindingContext = new SettingsViewModel(userService, sessionManager);
+    public SettingsPage()
+        : base(new SettingsViewModel(ServiceHelper.GetService<UserService>(),
+                                     ServiceHelper.GetService<SessionManager>()))
+    {
+        InitializeComponent();
+        Title = "Settings";
     }
 }
